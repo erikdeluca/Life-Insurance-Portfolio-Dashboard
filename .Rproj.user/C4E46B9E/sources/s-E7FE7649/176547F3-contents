@@ -1,0 +1,208 @@
+
+
+
+Portafoglio = new.env()
+#input
+  numeroAssicurati = 10000,
+  eta = 45,
+  rata = 20000,
+  # b
+  fondoInizio = 10 ** 7,
+  # C
+  numeroPremi = 1,
+  omega = 120,
+  differimento = 15,
+  temporanea = FALSE,
+  # temporanea o  vita intera
+  anniCopertura = 35,
+  rateGarantiteDurata = 0,
+  rendimentoFondoAnnuo = 0.04, # tasso finanziario
+  tassoAleatorio = TRUE,
+  # tasso finanziario aleatorio
+  tavolaMortalita = c(read.csv(file = "C:/Users/Erik/OneDrive - Università degli Studi di Trieste/Università/Laboratorio statistico informatico/mortalita.txt", header = FALSE, sep = "\t")[, 2],0,0),
+  # solo l_x e aggiungiamo gli ultimi due valori
+  tassoTecnico = 0.02,
+  generatoreDecessi = tavolaMortalita)
+{
+  # vengono inizializzati gli output
+  andamentoFondo = NULL
+  rendimentoFondo = NULL
+  decessi = NULL
+  
+  
+  calcoloTassoAleatorio = function()
+  {
+    # il tasso aleatorio si distribuisce come una uniforme che varia nell'intervallo rendimentoFondoAnnuo +- 50%
+    vettTasso = runif(anniCopertura,
+                      rendimentoFondoAnnuo * 0.5,
+                      rendimentoFondoAnnuo * 1.5) # normale
+    return(vettTasso)
+  }
+  
+  # calcola quante persone muoiono nel fondo 
+  calcoloDecessi = function()
+  {
+    died = NULL
+    for (i in eta:anniCopertura)
+    {
+      died = round(c(
+        died,
+        numeroAssicurati * (generatoreDecessi[i] - generatoreDecessi[i + 1]) / generatoreDecessi[1]
+      ), # da mettere aleatorietà
+      digits = 0) #le persone sono interi e quindi si arrotonda a degli interi
+    }
+    return(died)
+  }
+  
+  # calcola gli hPx tramite l_(x+h) / l_x
+  hPx = function(h, x)
+  {
+    # il +1 è per compensare che in R i vettori partono da 1 mentre l'età parte da zero
+    return(tavolaMortalita[h + x + 1] / tavolaMortalita[x + 1]) 
+  }
+  
+  premio = function()
+  {
+    if (rateGarantiteDurata > 0)
+    {
+      p = rata * (sum((1 + tassoTecnico) ** -c((differimento + 1):(differimento + 1 + rateGarantiteDurata)
+      )) + sum((1 + tassoTecnico) ** -c((differimento + 1 + rateGarantiteDurata):anniCopertura
+      ) * hPx(c((differimento + 1 + rateGarantiteDurata):anniCopertura
+      ), eta))) * (1 + tassoTecnico) ** -differimento
+      if (numeroPremi == 1)
+      {
+        return(p)
+      } else
+      {
+        return(p / sum((1 + tassoTecnico) ** -c(0:numeroPremi-1) * hPx(c(0:numeroPremi-1), eta))) # parte da zero perché la prima la pagano tutti
+      }
+    } else
+    {
+      p = rata * sum((1 + tassoTecnico) ** -(c((differimento + 1):anniCopertura))  
+                     * hPx(c((differimento + 1):anniCopertura), eta)) * (1 + tassoTecnico) ** -differimento
+      
+      if (numeroPremi == 1)
+      {
+        return(p)
+      } else
+      {
+        return(p / sum((1 + tassoTecnico) ** -c(0:numeroPremi-1) * hPx(c(0:numeroPremi-1), eta))) # parte da zero perché la prima la pagano tutti 
+      }
+      
+    }
+    return(-1) # nel caso l'utente inserisca rate garantite negative. Sì potrebbe mettere un try and catch
+  }
+  
+  
+  ####  INIZIO della funzione principale  ####
+  
+  # nel caso in cui sia rendita vitalizia allora gli anni di copertura sono uguali al'eta massima raggiungibile - l'età alla stipula del contratto
+  if (!temporanea)
+  {
+    anniCopertura = omega - eta
+  }
+  
+  # se il vettore è aleatorio
+  if (tassoAleatorio)
+  {
+    rendimentoFondoAnnuo = calcoloTassoAleatorio()
+  } else
+  {
+    rep(rendimentoFondoAnnuo, anniCopertura)
+  }
+  
+  rendimentoFondo = fondoInizio * (1 + rendimentoFondoAnnuo) ** c(1:(anniCopertura))  #solo caso premio unico altrimenti hpx
+  
+  riservaMatematicaDifferimento = NULL
+  
+  # Riserva matematica durata
+  riservaMatematicaDurata = NULL
+  
+  if (differimento > 0) {
+    for (t in 1:(differimento))
+    {
+      if (t > numeroPremi) {
+        sommaPremi = sum(hPx(c(1:numeroPremi),eta))
+      } else{
+        sommaPremi =  sum(hPx(c(1:t),eta))  # calcola chi muore mentre sta pagando i premi
+      }
+        riservaMatematicaDifferimento = c(
+        riservaMatematicaDifferimento,
+        numeroAssicurati * premio() * sommaPremi * (1 + tassoTecnico) ** t 
+      )
+    }
+  }
+  
+  if (rateGarantiteDurata > 0)
+  {
+    riservaMatematicaDurataGarantite = NULL
+    riservaMatematicaDurataNonGarantite = NULL
+    for (t in ((differimento + 1):(differimento + rateGarantiteDurata)))
+    {
+      addendo = NULL
+      # questo sarebbe l'interno della sommatoria
+      for (h in 1:t)
+      {
+        addendo = c(addendo, (1 + tassoTecnico) ** -(t+h))   
+      }
+      for(h in t:(anniCopertura - t))
+      {
+        addendo = c(addendo, (1 + tassoTecnico) ** -(t+h) * hPx(h, (eta + t)))
+      }
+      riservaMatematicaDurataGarantite = c(riservaMatematicaDurataGarantite, sum(addendo))
+    }
+    for (t in (differimento + 1 + rateGarantiteDurata):anniCopertura)
+      ### vengono pagate le rate da qua
+    {
+      addendo = NULL
+      #questo sarebbe l'interno della sommatoria
+      for (h in 1:(anniCopertura - t))
+      {
+        addendo = c(addendo, (1 + tassoTecnico) ** -(t+h) * hPx(h,eta+t))# è da sistemare probabilmente hPx
+      }
+      riservaMatematicaDurataNonGarantite = c(riservaMatematicaDurataNonGarantite, sum(addendo))
+    }
+    riservaMatematicaDurata = c(riservaMatematicaDurataGarantite,
+                                riservaMatematicaDurataNonGarantite)
+  } else # caso non ci siano rate garantite
+  {
+    for (t in (differimento + 1):anniCopertura)
+      ### vengono pagate le rate da qua
+    {
+      addendo = NULL
+      #questo sarebbe l'interno della sommatoria
+      for (h in 1:(anniCopertura - t))
+      {
+        addendo = c(addendo, (1 + tassoTecnico) ** -(t+h) * hPx(h,(eta+ t))) 
+      }
+      riservaMatematicaDurata = c(riservaMatematicaDurata, sum(addendo))
+    }
+    
+  }
+  
+  # unisce le riserve
+  if (is.null(riservaMatematicaDifferimento)) {
+    riservaMatematica = rata * riservaMatematicaDurata
+  } else{
+    riservaMatematica = c(
+      riservaMatematicaDifferimento,
+      rata * numeroAssicurati * riservaMatematicaDurata
+    )
+  }
+  
+  andamentoFondo = riservaMatematica + rendimentoFondo
+  
+  decessi = calcoloDecessi()
+  
+  ####  FINE della funzione principale  ####
+  
+  Output = new.env()
+  #output da lavorarci sopra
+  Output$andamentoFondo = andamentoFondo
+  Output$rendimentoFondo = rendimentoFondo
+  Output$decessi = decessi
+  Output$riservaMatematica = riservaMatematica
+  
+  return(Output)
+  
+}

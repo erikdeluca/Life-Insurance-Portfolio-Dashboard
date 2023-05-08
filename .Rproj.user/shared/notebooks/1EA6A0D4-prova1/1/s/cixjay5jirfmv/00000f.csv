@@ -1,0 +1,7 @@
+"0","o=gestionePortafoglio(numeroAssicurati = 1000,eta = 30,rata = 12000,fondoInizio = 10000,numeroPremi = 30,differimento = 30,temporanea = TRUE,anniCopertura = 40,rendimentoFondoAnnuo = 0.018,tassoTecnico = 0.02,tassoAleatorio = TRUE)"
+"0","print(o$premio)"
+"1","[1]"
+"1"," 2780.853"
+"1","
+"
+"0","plot(y = o$andamentoFondo,x = c(31:70),type=""l"")"

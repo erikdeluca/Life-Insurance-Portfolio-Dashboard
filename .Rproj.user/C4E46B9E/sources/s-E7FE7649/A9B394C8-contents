@@ -1,0 +1,825 @@
+---
+title: "Battito cardiaco durante il sonno"
+author: "Erik De Luca"
+date: "16/2/2021"
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+```{r warning=FALSE, collapse=FALSE, include=FALSE, paged.print=FALSE}
+LabSonnoTot = "Sonno totale"
+LabSonnoPro = "Sonno profondo"
+LabSonnoLeg = "Sonno legero"
+LabMedBpm = "Media battito cardiaco"
+LabMaxBpm = "Massimo battito cardiaco"
+LabMinBpm = "Minimo battito cardiaco"
+LabDi = "Giorno della settimana"
+LabMese = "Numero del mese"
+LabInizio = "Ora inizio del sonno"
+LabFine = "Ora fine del sonno"
+LabDensita = enc2utf8("Densità")
+library(plyr)
+library(sn)
+library(PerformanceAnalytics)
+library(knitr)
+library(ggplot2)
+require(MASS)
+library(renv)
+library(ggfortify)
+```
+
+# Dati
+
+I dati sono stati rilevati tramite un dispositivo indossabile (mi band 4) indossato dal sottoscritto.
+
+La durata della raccolta dei dati va dal 15/09/2019 al 6/12/2020. Il dispositivo indossabile ha dei sensori che registrano in continuazione il battito cardiaco e il sonno, suddividendolo a sua volta tra sonno profondo e sonno leggero. Successivamente si sono trasferiti i dati dal bracciale al telefono che, tramite un'applicazione, ha elaborato i dati raccolti. I dati, poi, sono stati esportati in formato 'csv' dall'applicazione al computer e contengono le seguenti informazioni:
+
+-   `Data`: Data della registrazione dei dati, data in formato `gg/mm/aaaa`
+-   `Giorno`: Giorno della settimana in cifre (es. lunedì=1)
+-   `Giorno lettere`: Giorno della settimana in lettere
+-   `Mese`: Numero del mese corrispondente
+-   `Ora inizio`: Ora in cui è stato registrato l'inizio del sonno
+-   `Ora fine`: Ora in cui è stata registrata la fine del sonno
+-   `inizioT` : Data della registrazione dei dati, data in formato `gg/mm/aaaa hh.mm`
+-   `Inizio sonno`: Data della registrazione all'inizio del sonno, data senza formattazione (per una precisa lettura da parte del programma)
+-   `Fine sonno`: Data della registrazione della fine del sonno, data senza formattazione (per una precisa lettura da parte del programma)
+-   `Sonno totale` : Durata in minuti del sonno
+-   `Sonno profondo` : Durata in minuti del sonno profondo
+-   `Sonno leggero`: Durata in minuti del sonno leggero
+-   `Battito medio`: Media delle registrazioni del battito cardiaco
+-   `Battito Max` : Valore massimo del battito del cuore registrato nel sonno
+-   `Battito Min` : Valore minimo del battito del cuore registrato nel sonno
+
+```{r}
+sonnoGrezzo=read.table(file = "/Users/Erik/OneDrive - Università degli Studi di Trieste/Dati/SonnoSinteticoOriginale.csv", header = TRUE, sep = ";")
+sonnoGrezzo[1:5,]
+```
+
+Prima di importare i dati in R li si ha adattati e semplificati per una migliore lettura, nello specifico:
+
+-   La data di inzio sonno e fine sonno contenevano all'interno giorno, mese, anno, ora e minuti. Con Excel la separazione di questi dati risulta molto più semplice e intuitiva che con R.
+
+-   Il giorno di inizio sonno, nei casi in cui il sonno iniziava prima della mezzanotte, veniva segnato il giorno prima e quindi è stato aggiustato.
+
+-   Spesso, a causa della scarsa aderenza con la pelle, l'orologio non rivela correttamente il sonno e si ottiene un insieme di intervalli separati per la stessa giornata. Evento analogo avviene anche nel caso in cui ci si sveglia durante la notte o si fa un pisolino pomeridiano. Per ovviare ciò è stato creato un algoritmo per l'unione delle rilevazioni fatte lo stesso giorno.
+
+-   Si crea così anche un altro problema, bisogna riconoscere i pisolini pomeridiani da quando ci si addormenta prima della mezzanotte, in modo da non spostare anche i pisolini nel giorno successivo. Per questo problema è stato risolto con Excel tramite la formula `=INT(SE(ORA([@[Inizio sonno]])<13;(ORA([@[Inizio sonno]])+24)*100+(MINUTO([@[Inizio sonno]])/0,6);ORA([@[Inizio sonno]])*100+(MINUTO([@[Inizio sonno]])/0,6)))`, in questa formula i numeri sono stati moltiplicati per 100 così da evitare la $,$ che successivamente nella formula `as.integer()` avrebbe dato errore.
+
+-   Dalla data si è estrapolato il giorno della settimana corrispondente, anche in questo caso Excel ha aiutato di molto con la formula `=CERCA.VERT(GIORNO.SETTIMANA([@Data];2);R1:S7;2)`
+
+## Qualità dei dati
+
+-   Quanto bene misurano ciò che vogliamo misurare: tutti i dati scelti sono ben definiti, i più problematici potrebbero essere i dati relativi al sonno e al tipo di sonno.
+-   Quanto precisamente misurano ciò che vogliamo misurare: su alcuni dati il margine d'errore è nullo, ad esempio in `Dì.settimana` non c'è dubbio del giorno della settimana in cui ci si sia addormentati, mentre per l'orario di inizio `Ora.inizio` ha spesso un margine di errore di una decina di minuti. Lo strumento con la quale viene analizzato il battito cardiaco ha una sensibilità di 1 bpm.
+
+Quindi i dati sono validi, rappresentativi (eccetto `Mese`) e affidabili (anche se non del tutto per la scarsa precisione degli strumenti).
+
+```{r}
+dati = read.table(file = "/Users/Erik/OneDrive - Università degli Studi di Trieste/Dati/sonnoR.csv", header = TRUE, sep = ";")
+datiPuliti = table(NULL)
+posizionei = c()
+posizionek = c()
+posizioneUltima = c()
+giorno2 = c()
+i = 1
+ultimoDatoDoppio = 0
+datiElaborati = table(NULL)
+vettIndice = c(1:length(dati$Giorno))
+#controlla quanti dati appartengono allo stesso giorno
+while (i < length(dati$Giorno))
+{
+  if (i > 1) {
+    if (dati$Giorno[i - 1] != dati$Giorno[i]) {
+      #se il giorno prima è diverso dal giorno attuale
+      j=i
+      while (dati$Giorno[i] == dati$Giorno[j]) {
+        posizionei = c(posizionei, i)
+        giorno2 = c(giorno2, dati$Giorno[i])
+        if (j != length(dati$Giorno)) {
+          kult = j
+          j = j + 1
+        } 
+        if(j == length(dati$Giorno)){ #ho dovuto sostituire il else a causa di un errore sconosciuto
+          #così esce sicuro dal ciclo
+          posizionei = c(posizionei, i)
+          giorno2 = c(giorno2, dati$Giorno[i])
+          kult = j
+          j = i-1
+        }
+        
+      }
+      for (k in i:kult) {
+        posizionek = c(posizionek, kult)
+      }
+    }
+  } else{
+    #caso i=1
+    j = i
+    while (dati$Giorno[i] == dati$Giorno[j]) {
+      posizionei = c(posizionei, i)
+      giorno2 = c(giorno2, dati$Giorno[i])
+      kult = j
+      j = j + 1
+    }
+    for (k in i:kult) {
+      posizionek = c(posizionek, kult)
+    }
+  }
+  i = i + 1
+}
+datiPuliti = matrix(c(vettIndice, posizionei, posizionek, giorno2),
+                    ncol = 4,
+                    byrow = FALSE)
+dimnames(datiPuliti) = list(1:length(posizionei),
+                            c("vettIndice", "posizionei", "posizionek", "giorno2"))
+#somme e medie
+datiElaborati = matrix()
+data=c()
+giornoSettimana = c()
+g=c()
+diSettimana=c()
+oraInizio=c()
+oraFine=c()
+giorno = c()
+mese = c()
+inizioSonno = c()
+fineSonno = c()
+sonnoTot = c()
+sonnoPro = c()
+sonnoLeg = c()
+battitoMed = c()
+battitoMax = c()
+battitoMin = c()
+i = 1
+while (i < length(dati$Giorno)) {
+  if (datiPuliti[i, 2] != datiPuliti[i, 3]) {
+    fine = as.integer(datiPuliti[i, 3])
+    data=c(data,dati$Data[i])
+    giornoSettimana = c(giornoSettimana, dati$Giorno.della.setimana[i])
+    g=c(g,dati$Giorno[i])
+    diSettimana=c(diSettimana,dati$Giorno.lettere[i])
+    oraInizio=c(oraInizio,dati$Ora.inizio[i])
+    oraFine=c(oraFine,dati$Ora.fine[i])
+    giorno = c(giorno, dati$Giorno[i])
+    mese = c(mese, dati$Mese[i])
+    inizioSonno = c(inizioSonno, dati$Inizio.sonno[i])
+    fineSonno = c(fineSonno, dati$Fine.sonno[fine])
+    sommaSonnoTot = sum(dati$Sonno.totale[c(i:fine)])
+    sommaSonnoPro = sum(dati$Sonno.profondo[c(i:fine)])
+    sommaSonnoLeg = sum(dati$Sonno.leggero[c(i:fine)])
+    mediaBattitoMed = mean(dati$Battito.medio[c(i:fine)])
+    mediaBattitoMax = max(dati$Battito.Max[c(i:fine)])
+    mediaBattitoMin = min(dati$Battito.Min[c(i:fine)])
+    sonnoTot = c(sonnoTot, sommaSonnoTot)
+    sonnoPro = c(sonnoPro, sommaSonnoPro)
+    sonnoLeg = c(sonnoLeg, sommaSonnoLeg)
+    battitoMed = c(battitoMed, mediaBattitoMed)
+    battitoMax = c(battitoMax, mediaBattitoMax)
+    battitoMin = c(battitoMin, mediaBattitoMin)
+    i = fine + 1
+  } else{
+    #caso solo 1 dato per giorno
+    g=c(g,dati$Giorno[i])
+    data=c(data,dati$Data[i])
+    giornoSettimana = c(giornoSettimana, dati$Giorno.della.setimana[i])
+    diSettimana=c(diSettimana,dati$Giorno.lettere[i])
+    oraInizio=c(oraInizio,dati$Ora.inizio[i])
+    oraFine=c(oraFine,dati$Ora.fine[i])
+    giorno = c(giorno, dati$Giorno[i])
+    mese = c(mese, dati$Mese[i])
+    inizioSonno = c(inizioSonno, dati$Inizio.sonno[i])
+    fineSonno = c(fineSonno, dati$Fine.sonno[i])
+    sonnoTot = c(sonnoTot, dati$Sonno.totale[i])
+    sonnoPro = c(sonnoPro, dati$Sonno.profondo[i])
+    sonnoLeg = c(sonnoLeg, dati$Sonno.leggero[i])
+    battitoMed = c(battitoMed, dati$Battito.medio[i])
+    battitoMax = c(battitoMax, dati$Battito.Max[i])
+    battitoMin = c(battitoMin, dati$Battito.Min[i])
+    i = i + 1
+  }
+}
+
+#intestazione
+intestazione = c(
+  "Data",
+  "Giorno",
+  "Dì settimana",
+  "Ora inizio",
+  "Ora fine",
+  "Mese",
+  "Inizio sonno",
+  "Fine sonno",
+  "Sonno totale",
+  "Sonno profondo",
+  "Sonno leggero",
+  "Media battito cardiaco",
+  "Max battito cardiaco",
+  "Min battito cardiaco"
+)
+
+datiElaborati = matrix(
+  c(
+    data,
+    giorno,
+    diSettimana,
+    oraInizio,
+    oraFine,
+    mese,
+    inizioSonno,
+    fineSonno,
+    sonnoTot,
+    sonnoPro,
+    sonnoLeg,
+    battitoMed,
+    battitoMax,
+    battitoMin
+  ),
+  ncol = 14
+)
+
+
+dimnames(datiElaborati) = list(NULL, intestazione)
+frame = data.frame(datiElaborati)
+framePulito = data.frame(NULL)
+
+
+#Conversione dei dati in numeri
+frame = transform(frame,
+                  Ora.fine = as.integer(Ora.fine))
+frame = transform(frame,
+                  Ora.inizio = as.integer(Ora.inizio))
+frame = transform(frame,
+                  Sonno.totale = as.integer(Sonno.totale))
+frame = transform(frame,
+                  Sonno.profondo = as.integer(Sonno.profondo))
+frame = transform(frame,
+                  Sonno.leggero = as.integer(Sonno.leggero))
+frame = transform(frame,
+                  Media.battito.cardiaco = as.integer(Media.battito.cardiaco))
+frame = transform(frame,
+                  Max.battito.cardiaco = as.integer(Max.battito.cardiaco))
+frame = transform(frame,
+                  Min.battito.cardiaco = as.integer(Min.battito.cardiaco))
+frame[1:5,]
+
+```
+
+## Valori anomali
+
+```{r}
+frame[frame$Media.battito.cardiaco<40,]
+```
+
+Come si può vedere non sempre il bracciale registra correttamente i dati, ci sono volte in cui, magari per la scarsa aderenza al polso, non viene registrato il battito cardiaco.
+
+In altri casi, invece, ho indossato il bracciale soltanto durante il giorno (in cui magari ho fatto un pisolino) e la notte ho scordato di indossarlo, in questo caso la durata del sonno sarà molto breve e andrà a rovinare le statistiche.
+
+Ci sono moltissimi altri fattori che influenzano la corretta registrazione dei dati. Dato che la mole di dati è significativa e andarli ad analizzare singolarmente sarebbe troppo laborioso, si è scelto di fare una 'scrematura' automatica dei dati.
+
+Note: Nel primo ciclo è stato messo un `while` in modo tale che a ogni giro del ciclo viene ricalcolata la lunghezza. Infatti ogni volta che vengono trovati dei valori anomali viene eliminata l'intera riga (`frame=frame[-c(i),]`)e la lunghezza del frame viene modificata
+
+```{r}
+
+i = 1
+while (i < length(frame[, 1]))
+{
+  if (frame$Media.battito.cardiaco[i] < 40)
+  {
+    frame = frame[-c(i),]
+  }
+  if (frame$Media.battito.cardiaco[i] < 40)
+  {
+    frame = frame[-c(i),]
+  }
+  if (frame$Media.battito.cardiaco[i] > 90)
+  {
+    frame = frame[-c(i),]
+  }
+  if (frame$Max.battito.cardiaco[i] > 140)
+  {
+    frame = frame[-c(i),]
+  }
+  if (frame$Sonno.totale[i] < 180)
+  {
+    frame = frame[-c(i),]
+  }
+  if (frame$Sonno.totale[i] > 800)
+  {
+    frame = frame[-c(i),]
+  }
+  if (frame$Min.battito.cardiaco[i] < 40)
+  {
+    frame = frame[-c(i),]
+  }
+  if (frame$Max.battito.cardiaco[i] < 40) {
+    frame = frame[-c(i),]
+  }
+  i = i + 1
+}
+```
+
+## Aggiunta di parametri
+
+Osservando i dati si nota una correlazione tra il battito cardiaco (media, minimo e massimo) con i giorni della settimana, escludendo che la causa del variare della media nei diversi giorni della settimana siano proprio i giorni della settimana, allora si è provato a vedere se è correlate con la durata del sonno (totale, profondo, leggero) oppure con l'ora dell'inizio o della fine del sonno.
+
+Per approfondire l'analisi si è scelto di inserire i dati sulla spesa che l'individuo esaminato effettua. I dati sono stati registrati tramite un'applicazione sul telefono in cui per ogni record sono stati inseriti: l'importo, la data, la posizione, la categoria, le etichette che riguardano in cosa è stato speso e con che gruppo di persone.
+
+```{r}
+spesaGrezza=read.csv('/Users/Erik/OneDrive - Università degli Studi di Trieste/Dati/SpesaGrezza.csv',header = TRUE,sep = ';')
+spesaGrezza[1695:1701,]
+```
+
+Si è prima effettuata una elaborazione dei dati con Excel dove si sono create delle liste indicatrici che indicassero se in quel giorno si fosse o meno restati fuori la sera, bevuto alcolici e nello specifico se era birra o altro. La formula utilizzata è stata la seguente: `=SE(SOMMA.SE(RecordSpesa[ggmmaaaa];[@ggmmaaaa];RecordSpesa[Serata])>0;1;0)`
+
+Mentre per registrare la spesa effettuata nel corso della serata la formula è stata la seguente: `=ASS(SOMMA.SE(RecordSpesa[ggmmaaaa];[@ggmmaaaa];RecordSpesa[spesa alcol]))*10`
+
+Successivamente i dati sono stati inseriti all'interno di un file csv e importati in RStudio e uniti al data frame principale.
+
+```{r}
+sera=read.table('/Users/Erik/OneDrive - Università degli Studi di Trieste/Dati/serata.csv',header = TRUE,sep = ';')
+data=c()
+giornoSettimana = c()
+diSettimana = c()
+oraInizio = c()
+oraFine = c()
+giorno = c()
+mese = c()
+inizioSonno = c()
+fineSonno = c()
+sonnoTot = c()
+sonnoPro = c()
+sonnoLeg = c()
+battitoMed = c()
+battitoMax = c()
+battitoMin = c()
+alcol = c()
+serata = c()
+birra = c()
+cocktail = c()
+spesa = c()
+
+for (i in 1:length(sera$Data))
+{
+  for (j in 1:length(frame$Data))
+  {
+    if (grepl(sera$Data[i], frame$Data[j])) {
+      data = c(data, frame$Data[j])
+      giorno = c(giorno, frame$Giorno[j])
+      diSettimana = c(diSettimana, frame$Dì.settimana[j])
+      mese = c(mese, frame$Mese[j])
+      oraInizio = c(oraInizio, frame$Ora.inizio[j])
+      oraFine = c(oraFine, frame$Ora.fine[j])
+      inizioSonno = c(inizioSonno, frame$Inizio.sonno[j])
+      fineSonno = c(fineSonno, frame$Fine.sonno[j])
+      sonnoTot = c(sonnoTot, frame$Sonno.totale[j])
+      sonnoPro = c(sonnoPro, frame$Sonno.profondo[j])
+      sonnoLeg = c(sonnoLeg, frame$Sonno.leggero[j])
+      battitoMed = c(battitoMed, frame$Media.battito.cardiaco[j])
+      battitoMax = c(battitoMax, frame$Max.battito.cardiaco[j])
+      battitoMin = c(battitoMin, frame$Min.battito.cardiaco[j])
+      alcol = c(alcol, sera$Alcol[i])
+      serata = c(serata,sera$Serata[i])
+      birra = c(birra,sera$birra[i])
+      cocktail = c(cocktail,sera$cocktail[i])
+      spesa = c(spesa,sera$spesa[i])
+    }
+  }
+}
+
+datiElaborati = matrix(
+  c(
+    diSettimana,
+    oraInizio,
+    oraFine,
+    mese,
+    sonnoTot,
+    sonnoPro,
+    sonnoLeg,
+    battitoMed,
+    battitoMax,
+    battitoMin,
+    alcol,
+    serata,
+    birra,
+    cocktail,
+    spesa
+  ),
+  ncol = 15
+)
+
+
+intestazioneMaggiorata = c(
+  "Dì settimana",
+  "Ora inizio",
+  "Ora fine",
+  "Mese",
+  "Sonno totale",
+  "Sonno profondo",
+  "Sonno leggero",
+  "Media battito cardiaco",
+  "Max battito cardiaco",
+  "Min battito cardiaco",
+  "Alcol",
+  "Serata",
+  "Birra",
+  "Cocktail",
+  "Spesa"
+)
+
+dimnames(datiElaborati) = list(data, intestazioneMaggiorata)
+datiIncrociati = data.frame(datiElaborati)
+datiIncrociati = transform(datiIncrociati,
+                  Ora.fine = as.integer(Ora.fine))
+datiIncrociati = transform(datiIncrociati,
+                  Ora.inizio = as.integer(Ora.inizio))
+datiIncrociati = transform(datiIncrociati,
+                  Sonno.totale = as.integer(Sonno.totale))
+datiIncrociati = transform(datiIncrociati,
+                  Sonno.profondo = as.integer(Sonno.profondo))
+datiIncrociati = transform(datiIncrociati,
+                  Sonno.leggero = as.integer(Sonno.leggero))
+datiIncrociati = transform(datiIncrociati,
+                  Media.battito.cardiaco = as.integer(Media.battito.cardiaco))
+datiIncrociati = transform(datiIncrociati,
+                  Max.battito.cardiaco = as.integer(Max.battito.cardiaco))
+datiIncrociati = transform(datiIncrociati,
+                  Min.battito.cardiaco = as.integer(Min.battito.cardiaco))
+datiIncrociati = transform(datiIncrociati,
+                  Alcol = as.integer(Alcol))
+datiIncrociati = transform(datiIncrociati,
+                  Serata = as.integer(Serata))
+datiIncrociati = transform(datiIncrociati,
+                  Birra = as.integer(Birra))
+datiIncrociati = transform(datiIncrociati,
+                  Cocktail = as.integer(Cocktail))
+datiIncrociati = transform(datiIncrociati,
+                           Spesa = as.integer(Spesa))
+livelloMese = c(
+  "Gennaio",
+  "Febbraio",
+  "Marzo",
+  "Aprile",
+  "Maggio",
+  "Giugno",
+  "Luglio",
+  "Agosto",
+  "Settembre",
+  "Ottombre",
+  "Novembre",
+  "Dicembre"
+)
+
+livelloSettimana = c("Lunedì",
+                     "Martedì",
+                     "Mercoledì",
+                     "Giovedì",
+                     "Venerdì",
+                     "Sabato",
+                     "Domenica")
+#cancellazione di alcuni dati anomali
+i=1
+while (i<length(datiIncrociati[, 1]))
+{
+   if (datiIncrociati$Media.battito.cardiaco[i] < 40)
+   {
+     datiIncrociati = datiIncrociati[-c(i), ]
+   }
+  i=i+1
+}
+str(datiIncrociati)
+
+```
+
+# Obbiettivo
+
+L'obbiettivo di questa indagine è scoprire quali parametri influenzano o sono correlati con il sonno e con il battito cardiaco. Nello specifico si andrà a cercare se e quanto i parametri a nostra disposizione spiegano il sonno o il battito cardiaco.
+
+Un aspetto interessante potrebbe essere verificare eventuali differenze tra sonno e alcol, oppure tra battito cardiaco e alcol.
+
+Dovremo tenere conto che certe variabili, ad esempio alcol e giorno della settimana possano essere correlate e di conseguenza la relazione con la risposta dell'una e dell'altra potrebbero confondersi.
+
+# Analisi esplorativa dei dati
+
+```{r}
+par(mfrow = c(1, 3))
+variabile = datiIncrociati$Sonno.totale
+hist(
+  variabile,
+  xlab = LabSonnoTot,
+  ylab = LabDensita,
+  main = "",
+  br = 20,
+  freq = FALSE
+)
+curve(dnorm(x, mean(variabile), sd(variabile)),
+      add = TRUE,
+      xlim = range(variabile))
+variabile = datiIncrociati$Sonno.profondo
+hist(
+  variabile,
+  xlab = LabSonnoPro,
+  ylab = LabDensita,
+  main = "",
+  br = 20,
+  freq = FALSE
+)
+curve(dnorm(x, mean(variabile), sd(variabile)),
+      add = TRUE,
+      xlim = range(variabile))
+variabile = datiIncrociati$Sonno.leggero
+hist(
+  variabile,
+  xlab = LabSonnoLeg,
+  ylab = LabDensita,
+  main = "",
+  br = 20,
+  freq = FALSE
+)
+curve(dnorm(x, mean(variabile), sd(variabile)),
+      add = TRUE,
+      xlim = range(variabile))
+```
+
+Interessante osservare la distribuzione dell'ora di inizio e di fine che si distribuiscono come una normale univariata asimmetrica e con curtosi
+
+```{r}
+variabile=datiIncrociati$Ora.fine
+ggplot(datiIncrociati, aes(x = variabile)) +
+  geom_histogram(aes(y = ..density..),
+                 fill = 'red',
+                 alpha = 0.6,
+                 bins = 50) +
+  geom_density(colour = 'blue',fill='blue',alpha=0.1,kernel="gaussian",adjust=0.9) + 
+  geom_density(colour = 'green',fill='green',alpha=0.1,kernel="gaussian",adjust=5) + 
+  xlab(LabFine) +
+  ylab(LabDensita)
+```
+
+Nel grafico sottostante è presente la densità approssimata della media del battito cardiaco rapportata ai nei diversi giorni della settimana.
+
+```{r warning=FALSE}
+Giorno=as.factor(datiIncrociati$Dì.settimana)
+variabile=datiIncrociati$Min.battito.cardiaco
+mu <- ddply(datiIncrociati,"Giorno", summarise, grp.mean=mean(Min.battito.cardiaco))
+p<-ggplot(datiIncrociati, aes(x=variabile, color=Giorno)) +
+  geom_density()+
+  geom_vline(data=mu, aes(xintercept=grp.mean, color=Giorno),
+             linetype="dashed")+
+  xlim(range(variabile))+
+  ylab(LabDensita)+
+  xlab(LabMedBpm)
+p
+```
+
+```{r}
+datiIncrociati$Alcol=as.factor(datiIncrociati$Alcol)
+datiIncrociati$Mese = factor(x = datiIncrociati$Mese,
+                             levels = livelloMese,
+                             ordered = TRUE)
+ggplot(datiIncrociati,
+       aes(
+         x = Mese,
+         y = Media.battito.cardiaco,
+         fill = Alcol
+       )) +
+  theme(
+    legend.box.spacing = unit(0, "cm"),
+    legend.position = "top",
+    legend.background = element_blank(),
+    axis.text = element_text(size = rel(0.78))
+  ) +
+  ylab(label = element_blank())+
+  geom_boxplot()   
+```
+
+```{r}
+kable(t(table(datiIncrociati$Mese[datiIncrociati$Alcol==1])))
+```
+
+Si può notare che durante il mese di aprile non c'è stata nessuna spesa in Cocktail a causa delle misure adottate per il Covid discorso simile per il mese di novembre. Invece nel mese di gennaio e giugno una possibile giustificazione dei scarsi dati può essere giustificata dalla sessione di esami e quindi dalla mancanza di tempo per lo svago. Questo influisce sulla rappresentatività dei dati per la variabile `Mese` cosa diversa invece per le altre variabili esplicative.
+
+```{r}
+cocktail=as.factor(datiIncrociati$Cocktail)
+datiIncrociati$Dì.settimana=factor(x = datiIncrociati$Dì.settimana,levels = livelloSettimana,ordered = TRUE)
+ggplot(datiIncrociati, aes(x=as.factor(Dì.settimana), y=Media.battito.cardiaco, fill=cocktail)) + 
+  theme(
+    legend.box.spacing = unit(0, "cm"),
+    legend.position = "top",
+    legend.background = element_blank(),
+    axis.text = element_text(size = rel(1))
+  ) +
+    geom_boxplot()+
+  xlab(LabDi)+
+  ylab(LabMedBpm)
+```
+
+Di seguito riportiamo la numerosità del campione in cui si verifica il parametro `Cocktail` nei diversi giorni della settimana in modo da facilitare la lettura del grafico soprastante.
+
+```{r}
+kable(t(table(datiIncrociati$Dì.settimana[datiIncrociati$Cocktail==1])))
+```
+
+# Modello
+
+Iniziamo dal modello, provo inizialmente a inserire tutte le variabili a disposizione $$
+Y = \beta_1+ \beta_2 dìDellaSettimana + \beta_3 sonnoProfondo  + ... + \beta_J Mese+ errore
+$$ dove $Y$ è la media del battito cardiaco durante il sonno. Subito a prima vista si possono osservare diverse correlazioni tra le variabili.
+
+```{r}
+fit=lm(Media.battito.cardiaco~.,data=datiIncrociati)
+summary(fit)
+fitb=stepAIC(fit,direction = "both")
+```
+
+```{r}
+summary(fitb)
+
+```
+
+## Interazioni
+
+Consideriamo il modello con le interazioni più logiche a prima vista, per esempio potremmo raggruppare tutte le variabili che misurano lo stesso fenomeno: 1 `Mese * Ora.fne * Dì.settimana` Che vanno tutte a misurare il tempo 2 `Max.battito.cardiaco * Min.battito.cardiaco`Che misurano il battito cardiaco e sono molto correlate alla variabile risposta 3 `Alcol * Birra` Che misurano l'assunzione di alcolici, e nello specifico il tipo di alcolici
+
+$$
+ Y= \beta_1 Dì.settimana *
+    \beta_2 Mese* \beta_3Ora.fine  + \beta_4Max.battito.cardiaco * \beta_5Min.battito.cardiaco + \beta_6Alcol *
+    \beta_7Birra+errore
+$$
+
+```{r}
+
+fitInterazione = lm(
+  formula = Media.battito.cardiaco ~ Dì.settimana *
+    Mese+ Ora.fine  + Max.battito.cardiaco * Min.battito.cardiaco + as.factor(Alcol) *
+    as.factor(Birra),
+  data = datiIncrociati)
+summary(fitInterazione)
+```
+
+Emerge che non ha senso tenere conto dell'interazione tra `Alcol` e `Birra` e neanche dell' `Ora.fine` con le altre date, invece delle interazioni tra le altre variabili sì.
+
+```{r}
+fitInterazione = lm(
+  formula = Media.battito.cardiaco ~ Dì.settimana *
+    Mese+ Ora.fine  + Max.battito.cardiaco * Min.battito.cardiaco + as.factor(Alcol) +
+    as.factor(Birra),
+  data = datiIncrociati)
+summary(fitInterazione)
+```
+
+### Utilizzo di indici analitici
+
+Si nota che $ R^2 adjusted$ è minore del modello senza interazione. Nella costruzione di un modello bisogna stare attenti all'errore di adattamento che decresce all'aumentare della complessità del modello e all'errore di generalizzazione che con l'aumentare della complessità del modello decresce per poi ad un certo crescere.
+
+Una valutazione analitica per l'errore di generalizzazione ha la forma $errore\space di\space adattamento + penalizzazione \space complessità$. In questo caso (e anche prima) verrà usato il criterio di informazioni di Akaike $$AIC=n* log(\hat\sigma^2)+2(p+1)$$
+
+```{r}
+fitAIC=stepAIC(fitInterazione,direction = "both")
+summary(fitAIC)
+```
+
+Sotto viene riportato l'ANOVA ovvero l'analisi delle varianze
+
+```{r}
+anova(fit,fitb)
+anova(fitAIC,fitInterazione)
+anova(fitInterazione,fitb)
+```
+```{r}
+summary(fitb)
+```
+
+
+Quindi il modello finale che useremo sarà $$Y=\beta_1 Dì.settimana + \beta_2Mese + \beta_3Ora.inizio + \beta_4
+    Max.battito.cardiaco +... +\beta_jBirra+errore $$ che risulta essere il modello con la statistica $F$ maggiore ($35.74$)
+
+
+
+```{r}
+ggplotRegression <- function (fit) {
+  ggplot(fit$model, aes_string(x = names(fit$model)[7], y = names(fit$model)[1])) +
+    geom_point() +
+    stat_smooth(method = "lm", col = "red") +
+    labs(title = paste(
+      "Adj R2 = ",
+      signif(summary(fit)$adj.r.squared, 5),
+      " Max.battito.cardaco =",
+      signif(fitb$coefficients["Max.battito.cardiaco"], 5),
+      " P =",
+      signif(summary(fit)$coef["Max.battito.cardiaco",4], 5)
+    ))
+}
+ggplotRegression(fitb) +
+  xlab(LabMaxBpm) +
+  ylab(LabMedBpm)
+```
+
+## Qualità del modello
+
+L'$R^2$ è relativamente basso ma questo è ragionevole in questo contesto dove ci aspettiamo che la variabilità del fenomeno intorno al modello di regressione sia grande. Sulla base della statistica $F$ il modello IID è preferibile rispetto a quello con interazioni.
+
+La variabile risposta `Media.battito.caridiaco` è una variabile quantitativa discreta, poiché i dati rilevati dal sensore sono tutti numeri naturali.
+
+### Multicollinearità
+
+Il `Sonno.totale` è dato dalla somma di `Sonno.profondo` + `Sonno.leggero` e se fossero state incluse tutte e 3 le variabili nel modello ciò avrebbe potuto portare a non identificabilità del modello (multicollinearità) che avrebbe causato elevate varianze dei coefficienti. Stesso discorso vale per le etichette riguardanti l'assunzione delle diverse tipologie di alcolici con `Alcol` che contiene tutte.
+
+```{r}
+summary(lm(datiIncrociati$Media.battito.cardiaco~datiIncrociati$Sonno.totale+datiIncrociati$Sonno.profondo+datiIncrociati$Sonno.leggero))
+summary(lm(datiIncrociati$Media.battito.cardiaco~datiIncrociati$Sonno.profondo+datiIncrociati$Sonno.leggero))
+```
+
+### Ipotesi e strumenti di verifica sui residui
+
+Per verificare quanto il modello si adatti al fenomeno si useranno alcuni strumenti grafici e inferenziali sui residui. Non necessariamente un comportamento diverso da quello ideale dei residui porta a negare il modello.
+
+#### Omoschedasticità e linearità
+
+Come strumento grafico si può usare il diagramma di dispersione dei residui (std) rispetto a $x$ o $\hat y $. Se la relazione è lineare il grafico non mostra regolarità (andamenti) ovvero positivi e negativi si alternano oppure simmetrie rispetto l'asse delle ascisse. Se i residui rispettano l'ipotesi di omoschedasticità allora la variabilità dei residui deve rimanere costante.
+
+Mentre come test inferenziale, per l'omoschedasticità, si può usare il test di Bartlett. 
+
+```{r warning=FALSE
+```
+
+#### Normalità
+Per la verifica della normalità si è utilizzato il diagramma quantile - quantile che risulta il miglior strumento in quanto molto preciso.
+```{r warning=FALSE}
+autoplot(
+    fitb,
+    which = 2,
+    colour = 'black',
+    smooth.colour = 'black',
+    smooth.linetype = 'dashed',
+    ad.colour = 'blue',
+    label.size = 3,
+    label.n = 5,
+    label.colour = 'blue',
+    ncol = 1
+  )
+
+```
+
+Il problema potrebbe essere dato dall'asimmetria della variabile risposta.
+
+```{r}
+variabile=datiIncrociati$Media.battito.cardiaco
+ggplot(datiIncrociati, aes(x = variabile)) +
+  geom_histogram(aes(y = ..density..),
+                 fill = 'red',
+                 alpha = 0.6,
+                 bins = 30) +
+  geom_density(colour = 'blue',fill='blue',alpha=0.1,kernel="gaussian",adjust=0.9) + 
+  geom_density(colour = 'green',fill='green',alpha=0.1,kernel="gaussian") + 
+  xlab(LabMedBpm) +
+  ylab(LabDensita)
+```
+
+### Analisi di alcuni valori anomali
+
+Come si può vedere dal grafico dei residui, merita analizzare alcune date e osservare il motivo del loro scostamento dal modello:
+
+```{r}
+date=c("08/02/2020","28/11/2020","07/12/2020","18/08/2020")
+dati[dati$Data=="26/03/2020",]
+datiIncrociati[date,]
+```
+
+Nel primo caso il `Max.battito.cardiaco` dovuto molto probabilmente a una errata rilevazione, il dato infatti poi è stato tolto mediante il controllo iniziale di dati rilevati male.
+
+Nel secondo caso, invece, è l'`Ora.fine` che è anomala al modello. Probabilmente l'errore si è creato nell'unione dei dati alla stessa giornata.
+
+Il `18/08/2020` il motivo dell'anomalia è che la variabile `Alcol` non è stata registrata come `True` perché non c'è stata nessuna spesa nella omonima categoria ma l'assunzione c'è stata in quanto era una festa di compleanno. Questo è il dato che di più si discosta dal modello ed è ragionevole fare fare una correzione dei dati.
+
+```{r}
+datiSistemati=datiIncrociati
+datiSistemati["18/08/2020","Alcol"]=1
+datiSistemati["18/08/2020","Birra"]=1
+datiSistemati["18/08/2020","Serata"]=1
+datiSistemati["08/02/2020","Ora.fine"]=mean(datiIncrociati$Ora.fine)
+datiSistemati["07/12/2020","Ora.fine"]=mean(datiIncrociati$Ora.fine)
+datiSistemati["28/11/20200","Max.battito.cardiaco"]=mean(datiIncrociati$Max.battito.cardiaco[datiIncrociati$Alcol==0])
+fitPulito = lm(
+  Media.battito.cardiaco ~ Dì.settimana + Ora.inizio + Mese  + Sonno.leggero + Max.battito.cardiaco + Min.battito.cardiaco +
+    Alcol + Birra ,
+  data = datiSistemati
+)
+summary(fitb)[9]
+summary(fitPulito)[9]
+```
+Da notare come la stima del coefficiente per la variabile `Birra` sia negativo, questo non significa che l'assunzione di birra diminuisca il battito cardiaco nel sonno. Infatti bisogna osservare anche la stima del coefficiente `Alcol` poiché quando `Birra` è verificata allora è verificata anche `Alcol` però nel caso in cui sia presente solo `Alcol` vorrà dire che c'è stata solo assunzione di `Cocktail` mentre se è verificata anche `Birra` allora la `Media.battito.cardiaco` sarà più bassa che del primo caso.
+
+# Conclusioni
+
+In questo modello la variabilità è elevata a causa della complessità del fenomeno, è naturale pensare che il battito cardiaco sia influenzato da moltissimi fattori, molti dei quali non misurabili. Però emergono alcune relazioni tra il cuore e lo stile di vita analizzato, mentre altre variabili come il sonno non risultano essere correlate significativamente con la variabile risposta.
+
+Emerge che l'assunzione di alcolici ha un effetto nel senso che nelle giornate in cui vengono assunti alcolici la media del battito cardiaco nel sonno (in media) sarà maggiore, e questo in misura maggiore il mercoledì e il sabato e in alcuni mesi dell'anno. Nel valutare questo si è tenuto conto dell'impatto di altre caratteristiche potenzialmente correlate (ad esempio la spesa nella categoria alcolici oppure le differenze tra birra e cocktail che hanno una gradazione maggiore della birra).
+
+Vanno evidenziati i limiti dell'interpretazione che possiamo dare a questi risultati, in particolare è possibile ipotizzare che la causa dietro a questi effetti sia che per il metabolismo dell'alcol è richiesta molta acqua, ciò porta a disidratazione e il sangue a sua volta diventa più concentrato circolando con più difficoltà nei vasi sanguigni, di conseguenza il cuore che funge da pompa per il sangue dovrà battere più velocemente.

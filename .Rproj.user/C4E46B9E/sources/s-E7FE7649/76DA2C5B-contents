@@ -1,0 +1,22 @@
+liberta=3
+x=rchisq(10,liberta)
+medie=NULL
+a=10
+for(i in 1:a)
+{
+  medie=c(medie,mean(x**i)**(1/(i-5)))
+}
+
+geometriche=NULL
+b=10
+for(i in 1:b)
+{
+  geometriche=c(geometriche,(prod(x**i)**(1/(i-5)))**(1/b))
+}
+
+curve(expr = dchisq(x,df = liberta),from = 0,to = 4,n = 100)
+
+for(i in 1:a)
+{
+  abline(v=medie[i])
+}

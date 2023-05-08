@@ -1,0 +1,245 @@
+######################
+## Simulazione in R ##
+######################
+
+# le distribuzioni piu' comuni sono contenute nella distribuzione base di R
+
+# esempio: distribuzione normale
+# dnorm: densita'
+# pnorm: funzione di ripartizione
+# qnorm: funzione quantile (inversa generalizzata)
+# rnorm: simulazione
+
+# Beta: rbeta
+# Binomiale: rbinom
+# Cauchy: rcauchy
+# Chi-quadrato: rchisq
+# Esponenziale: rexp
+# F: rf
+# Gamma: rgamma
+# Geometrica: rgeom
+# Ipergeometrica: rhyper
+# Lognormale: rlnorm
+# Logistica: rlogis
+# Normale: rnorm
+# Poisson: rpois
+# Student: rt
+# Uniforme: runif
+# Weibull: rweibull
+
+# molte altre distribuzioni sono contenute in pacchetti aggiuntivi
+# e.g.: distribuzione di pareto nel pacchetto 'actuar'
+
+# runif fornisce il generatore casuale in (0,1)
+# il seme viene controllato tramite il comando set.seed
+
+# 1) imposta il seme a 1 e genera 5 uniformi U(0,1)
+set.seed(seed = 1)
+runif(n = 5)
+
+# 2) genera 5 uniformi U(6,10)
+set.seed(1)
+runif(5, min = 6, max = 10)
+
+# oppure
+set.seed(1)
+runif(n = 5) * 4 + 6
+
+# 3) controllare graficamente l'uniformita del generatore casuale
+# usare 10000 simulazioni e i comandi plot e hist / density
+U1 <- runif(n = 10000)
+hist(U1)
+hist(U1, freq = FALSE, breaks = 50)
+abline(h = 1)
+
+plot(density(x = U1))
+
+hist(U1, freq = FALSE, breaks = 50)
+lines(density(x = U1), col = "red")
+
+# 4) testare l'indipendenza delle uniformi simulate al punto precedente con il test Box-Pierce (o Ljung-Box)
+# H0: i dati vengono da variabili indipendenti
+
+Box.test(x = U1)
+
+# 5) set.seed si puo' usare per impostare il generatore casuale oppure usare RNGkind
+# NON CAMBIARE GENERATORE CASUALE SE NON SI HANNO RAGIONI SPECIFICHE PER FARLO!!!!
+
+RNGkind(kind = NULL, normal.kind = NULL)
+
+# kind permette di scegliere il generatore casuale
+# in R sono implementati i seguenti:
+# "Wichmann-Hill": periodo ~ 7*10^12
+# "Marsaglia-Multicarry": periodo ~ 2^60
+# "Super-Duper": periodo ~ 4.6*10^18
+# "Mersenne-Twister" (default): periodo ~ 2^19937-1 ********
+# "Knuth-TAOCP-2002": periodo ~ 2^129.
+# "Knuth-TAOCP"
+# "L'Ecuyer-CMRG"
+# "user-supplied"
+
+# 6) NON USARE METODI COSTRUITI "ALLA MANO" SE METODI DIRETTI SONO GIA' PRESENTI IN R
+# => CONTROPRODUCENTE
+# => INEFFICIENTE
+# => PERICOLOSO
+
+# esempio: esponenziale usando rexp oppure con il metodo dell'inversa => poca differenza
+
+nsim <- 10 ^ 6 # un milione di simulazioni
+set.seed(1)
+
+E1 <- function()rexp(nsim, rate = 1)
+E2 <- function()-log(1 - runif(nsim))
+E3 <- function()-log(runif(nsim))
+
+system.time(E1())
+system.time(E2())
+system.time(E3())
+
+
+# 7) altro esempio: chi-quadrato con 2n gradi di liberta' (n intero) puo' essere ottenuta
+#    come 2(X1 + X2 + ... + Xn) dove Xi sono esponenziali di parametro 1 indipendenti oppure
+#    come Y1^2 + ... + Yn^2 dove le Yi sono normali standard
+# usare "apply" e "colSums
+set.seed(0)
+nsim <- 10 ^ 6
+
+C1 <- function(df)rchisq(n = nsim, df = df)
+
+C2 <- function(df){
+  stopifnot(df %% 2 == 0)
+  nexp <- df / 2
+  U <- matrix(data = runif(nsim * nexp), nrow = nexp, byrow = FALSE) # matrice con nexp righe, nsim colonne, riempita con U(0,1)
+  
+  X <- -log(U) #matrice con esponenziali di parametro 1
+  X <- 2 * apply(X = X, MARGIN = 2, FUN = sum)
+  return(X)
+}
+
+system.time(C1(6))
+system.time(C2(6))
+
+system.time(C1(20))
+system.time(C2(20))
+
+# si velocizza se usiamo "colSums"?
+
+C3 <- function(df){
+  stopifnot(df %% 2 == 0)
+  nexp <- df / 2
+  
+  X <- 2 * colSums(-log(matrix(data = runif(nsim * nexp), nrow = nexp, byrow = FALSE)))
+  return(X)
+}
+
+system.time(C1(20))
+system.time(C2(20))
+system.time(C3(20))
+
+C4 <- function(df){
+  X <- colSums(matrix(data = rnorm(nsim * df) ^ 2, nrow = df))
+  return(X)
+}
+
+system.time(C1(20))
+system.time(C2(20))
+system.time(C3(20))
+system.time(C4(20))
+
+
+# se si aumentano i gradi di liberta':
+
+
+# 8) simulare 500 lanci di moneta equa, T = 0, C = 1
+# con "rbinom", "runif" e "sample"
+set.seed(1)
+TC1 <- rbinom(n = 500, size = 1, prob = 0.5)
+
+TC1
+
+
+# verificare distribuzione casuale usando "table" e "replicate" (valutazioni ripetute di una data espressione)
+
+table(TC1)
+
+TC1.1 <- replicate(expr = rbinom(n = 500, size = 1, prob = 0.5), n = 10)
+dim(TC1.1)
+apply(X = TC1.1, MARGIN = 2, FUN = table)
+
+# con "runif"
+
+
+
+
+
+# con "sample"
+# "sample" permette di simulare (campionare) da una distribuzione finita, con o senza rimpiazzo
+
+TC3 <- sample(x = c("T", "C"), size = 500, replace = TRUE)
+table(TC3)
+paste(TC3, collapse = "")
+
+sample(x = c("T", "C"), size = 500)
+
+# qual'e' il piu' efficiente (veloce)?
+# (con 5000000 simulazioni)
+
+
+
+
+
+
+# 9) uso di "sample": simulare 50 estrazioni da una distribuzione discreta -2, 1, 5 con prob 1/4, 1/3, 5/12
+
+P1 <- sample(x = c(-2, 1, 5), size = 50, replace = TRUE, prob = c(1 / 4, 1 / 3, 5 / 12))
+
+P1.1 <- sample(x = c(-2, 1, 5), size = 5000, replace = TRUE, prob = c(1 / 4, 1 / 3, 5 / 12))
+
+table(P1.1) / 5000
+c(1 / 4, 1 / 3, 5 / 12)
+
+# 10) scrivere una funzione per simulare estrazioni di sfere colorate da un' urna con e
+#     senza rimpiazzo
+# la funzione deve prendere in input i nomi dei colori, il numero di sfere per ogni colore, 
+# il numero di estrazioni e se avvengono con o senza rimpiazzo
+
+estrazioni.urna = function(nomiColori = c("R", "B"),
+                           numSfere = rep(x = 1, length.out = length(nomiColori)),
+                           numEstrazioni = 1,
+                           rimpiazzo = TRUE) {
+  lungNumSfere=length(numSfere)
+  if(lungNumSfere==1){
+      numSfere=rep(x=numSfere,length.out=length(nomiColori))
+  }else if(length(nomiColori)!=length(numSfere)){
+      stop("Errore!")
+  }
+  urna=rep(nomiColori,times=numSfere)
+  estrazione=sample(x=urna,size = numEstrazioni,replace = rimpiazzo)
+  return(estrazione)
+  }
+estrazioni.urna(c("R","G","B","W"),c(5,9,1,20),10)
+
+
+
+
+
+
+
+
+
+# 11) simulare estrazione del lotto su 10+1 ruote
+
+
+
+
+
+
+# 12) simulare la prima mano a poker con 4 giocatori
+nGiocatori=4
+ranghi=c("A ",paste(2:9," ",sep = ""),10,"J ","Q ","K ")
+seme=c("C","Q","F","P")
+paste(ranghi[11],seme[3],sep = "")
+mazzo=outer(X=ranghi,Y=seme,FUN =paste)
+mano=sample(x=mazzo,size=5*nGiocatori,replace = FALSE)
+mano=matrix(mano,nrow = nGiocatori)
+mano

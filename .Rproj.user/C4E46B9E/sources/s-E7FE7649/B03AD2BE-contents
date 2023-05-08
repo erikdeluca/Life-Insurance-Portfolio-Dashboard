@@ -1,0 +1,557 @@
+---
+  title: "Lezione 2"
+output: html_document
+---
+
+\#\# Simulazione in R
+
+1)  caricare il file IPS55.TAV contenente valori di lx e simulare la durata di vita troncata (per eccesso o per difetto)
+
+setwd("inserire qui la directory") \# oppure in Rstudio -\> Session -\>
+
+```{r}
+IPS55M=read.table(file="IPS55M.txt",header=FALSE,col.names=c("x","lx"))
+#head(IPS55M)
+tail(IPS55M) # fa vedere i dati in coda
+#show(IPS55M)
+```
+
+Voglio calcolarmi ora le probabilità di sopravvivenza e simulare la probabilità di vita troncata dato un individuo
+
+```{r}
+tpx <- IPS55M$lx / IPS55M$lx[1] #prob di sopravvivenza
+#tpx<-IPS55M[,2]/IPS55M[1,2] #notazione matriciale
+
+tpx <- c(tpx, 0)
+# aggiungi uno 0 alla fine della lista degli lx perchè tronchiamo il calcolo sulla fine
+
+x <- c(IPS55M$x, tail(IPS55M$x, n = 1) + 1)
+#aggiungi l'eta' estrema (prima eta' che non e' possibile raggiungere in vita)
+#la ottengo aggiungendo 1 all'età massima
+
+tqx<-1-tpx #funzione di ripartizione di K0
+
+par(mfrow=c(1,2))
+plot(x,tpx,type="l")
+plot(x,tqx,type="l")
+```
+
+Simulazione da questa distribuzione
+
+```{r}
+n.sim<-10^5
+set.seed(1234)
+U<-runif(n.sim)
+#per ogni uniforme va a vedere a che intervallo ppartiene e mi restituisce il
+Kx<-findInterval(x=U,vec=tqx[-1])
+hist(Kx)
+```
+
+N.B. Il comando Sample richiede una distribuzione di probabilità e non una distribuzione empirica dei dati
+
+```{r}
+#k|qx
+k.qx<-diff(tqx)
+#sum(k.qx)
+plot(k.qx,type="l")
+```
+
+```{r}
+#tolgo l'ultimo elemento
+Kx1<-sample(x=x[-120],prob=k.qx,replace=T,size=n.sim)
+hist(Kx1,freq=F)
+lines(k.qx,type="l",col="red")
+```
+
+Posso scegliere di utilizzare un metodo diverso dal metodo standard (metodo dell'inversa) per simulare da una normale. Fortemente sconsigliato a meno che non si voglia testare l'efficacia di altri simulatori (algoritmi). Per ottenere tale risultato devo utilizzare il comando:
+
+                                                                       RNGkind
+                                                                     normal.kind permette di scegliere il metodo per simulare variabili aleatorie normali:
+                                                                       "Kinderman-Ramage",
+                                                                     "Buggy Kinderman-Ramage"
+                                                                     "Ahrens-Dieter"
+                                                                     "Box-Muller"
+                                                                     "Inversion" (default)
+                                                                     "user-supplied"
+                                                                     
+                                                                     2) verificare il tempo impiegato per 10 ^ 7 simulazioni da  Box-Muller e dal metodo di default
+
+```{r}
+RNGkind(normal.kind = "Box-Muller")
+set.seed(1)
+system.time(rnorm(10^7))
+
+RNGkind(normal.kind = "Inversion")
+set.seed(1)
+system.time(rnorm(10^7))
+```
+
+ATTENZIONE ALLA PARAMETRIZZAZIONE DELLE DISTRIBUZIONI
+
+3)  Esempio: nella distribuzione gamma si deve specificare "shape" e uno tra "rate" o "scale" rate = 1 / scale
+
+```{r}
+par(mfrow=c(1,2))
+set.seed(1)
+hist(rgamma(n=10,shape=2,scale=1/3),prob=T)
+set.seed(1)
+hist(rgamma(n=10,shape=2,scale=1/3),prob=T)
+```
+
+4)  Scrivere una funzione per generare la somma di lognormali (iid) osservazione: non e' nota la distribuzione di tale variabile aleatoria
+
+```{r}
+#rlnorm()
+rSommaLogNormali<-function(nsim=1,nl=2,meanlog=0,sdlog=1){
+  x<-matrix(data=rlnorm(n=nsim*nl,meanlog=meanlog,sdlog = sdlog),nrow=nl)
+  colSums(x)
+  return(colSums(x))
+}
+
+set.seed(1)
+nsim<-10^5
+SL<-rSommaLogNormali(nsim=nsim,nl=5)
+plot(density(x=SL))
+
+summary(SL)
+fivenum(SL)
+plot(density(x=SL),xlim=c(0,40))
+```
+
+5)  Calcolare E[X], E[X \^ 2], P(X \> 8) tramite Monte Carlo quando X = somma di 5 lognormali(0, 1)
+
+```{r}
+#sfrutto le distribuzione teoriche, in particolare della fgm
+EX.true <- 5 * exp(0 + 0.5 * 1 ^ 2)
+
+set.seed(1)
+nsim<-10^5
+x<-rSommaLogNormali(nsim=n.sim,nl=5)
+
+# stima, intervallo di confidenza
+EX.MC<-mean(x)
+EX.MC.inf<-EX.MC-qnorm(p=.975)*sd(x)/sqrt(n.sim)
+EX.MC.sup<-EX.MC+qnorm(p=.975)*sd(x)/sqrt(n.sim)
+
+EX.MC
+c(EX.MC.inf,EX.MC.sup)
+
+# ampiezza intervallo
+EX.MC.sup-EX.MC.inf
+
+# errore assoluto
+abs(EX.MC-EX.true)/EX.true
+
+# errore relativo
+100*abs(EX.MC-EX.true)/EX.true
+
+# E[X^2]
+X2<-X^2
+mean(X2)
+
+mean(X2)+c(-1,1)*qnorm(.975)*sd(X2)/sqrt(n.sim)
+
+#Pr(X>8)
+X8<-(X>8)
+mean(X8)
+
+X[1:10]
+1*(X[1:10]>8)
+```
+
+6)  scrivere funzione che dato un campione simulato, calcola il valor medio e l'intervallo di confidenza
+
+```{r}
+MonteCarlo <- function(x, level = 0.95)
+{
+  nsim <- length(x)
+  MC <- mean(x)
+  SE <- sd(x) / sqrt(nsim)
+  #lower tail = false indica che la prob diverta 1-alpha al posto di alpha
+  z <- qnorm((1 - level) / 2, lower.tail = FALSE)
+  MC.l <- MC - z * SE
+  MC.u <- MC + z * SE
+  IC <- c(MC.l, MC.u)
+  #converte in testo e stampa l'intervallo in modo carino
+  names(IC) <- as.character(c((1 - level) / 2, level + (1 - level) / 2))
+  return(list(MC, IC))
+}
+
+#debug(Montecarlo)
+#serve per evitare che ogni volta che si entra nella modalità debug analizzi la funzione Montecarlo
+#undebug(MonteCarlo)
+
+nsim1 <- 10 ^ (1 : 6) # da 10 a 1 milione
+XX <- matrix(nrow = 6, ncol = 6) # risultati
+#seq_along equivale a 1:lenght(nsim1)
+for (i in seq_along(nsim1))
+{
+  set.seed(1)
+  X <- rSommaLogNormali(nsim = nsim1[i], nl = 5, meanlog = 0, sdlog = 1)
+  MC <- MonteCarlo(X, level = 0.99)
+  XX[i, ] <- c(MC[[1]], #stima centrale
+               MC[[2]], #intervallo di confidenza
+               MC[[2]][2] - MC[[2]][1], #ampiezza intervallo
+               abs(MC[[1]] - EX.true), #errore assoluto
+               100 * abs((MC[[1]] - EX.true) / EX.true)) #errore relativo
+}
+#metto i dati in un dataframe
+risultato <- data.frame(nsim = nsim1,
+                        MC = XX[, 1],
+                        inf = XX[, 2],
+                        sup = XX[, 3],
+                        delta = XX[, 4],
+                        errore.a = XX[, 5],
+                        errore.r = XX[, 6])
+#mi viene mostrato l'errore in termini assoluti nel confronto tra i dati simulati con il metodo montecarlo e la distribuzione teorica
+risultato
+```
+
+7)  Scrivere funzione per la f. di ripartizione, densita', quantile e simulazione delle vita residua di un individuo distribuita come una Gompertz
+
+    usare x = 40, alpha = 2.67433 \* 10 \^ -5, beta = log(1.098)
+
+    confrontare la distribuzione di Tx con density() vs densita' esatta
+
+calcolare valor medio di T con Monte Carlo e via integrazione numerica della funzione di sopravvivenza
+
+```{r}
+#riprendono i concetti visti sulle slides viste con la bacinello
+
+pGompertz <- function(t, x, alpha, beta, lower.tail = TRUE)
+{
+  B <- exp(beta * x)
+  p <- 1 - exp(- alpha * B * (exp(beta * t) - 1) / beta)
+  if (lower.tail) return(p) else return(1 - p)
+}
+
+dGompertz <- function(t, x, alpha, beta)
+{
+  B <- exp(beta * x)
+  return(alpha * B * exp(beta * t - alpha * B * (exp(beta * t) - 1) / beta))
+}
+
+qGompertz <- function(p, x, alpha, beta)
+{
+  B <- exp(beta * x)
+  log(1 - beta * log(1 - p) / (alpha * B)) / beta
+}
+#funzione vettorizzata rispetto p!!!
+
+rGompertz <- function(nsim=1, x, alpha, beta){
+  U <- runif(n=nsim)
+  T<-qGompertz(p=U,x,alpha,beta)
+  return(T)
+}
+
+x = 40
+alpha = 2.67433*10^-5
+beta = log(1.098)
+
+set.seed(1)
+nsim=10^4
+TG<-rGompertz(nsim,x,alpha,beta)
+#durate (valori che voglio considerare)
+tt<-0:80
+plot(tt, dGompertz(t = tt, x = 40, alpha = 2.67433 * 10 ^ -5, beta = log(1.098)), type = "l", xlab = "t", ylab = "Densita'", main = "densita' della Gompertz")
+lines(density(TG), col = "red")
+
+hist(TG, freq = FALSE, breaks = 100)
+lines(density(TG), col = "red")
+
+# calcolo via Monte Carlo
+E.TG <- MonteCarlo(TG)
+
+# via integrazione numerica della funzione di sopravvivenza
+#funzione per il calcolo numerico dell'integrale
+E.TG.num<-integrate(f=pGompertz,lower = 0,upper=Inf,x=40,alpha,beta,lower.tail=F)
+
+E.TG.num
+
+#aumento la precisione del calcolo numerico
+E.TG.num<-integrate(f=pGompertz,lower = 0,upper=Inf,x=40,alpha,beta,lower.tail=F, subdivisions = 1000,rel.tol = 10^(-10))
+
+# errore assoluto
+
+abs(E.TG[[1]]-E.TG.num$value)
+
+# errore relativo
+
+100*(abs(E.TG[[1]]-E.TG.num$value)/E.TG.num$value)
+
+# per diminuire l'ampiezza dell'intervallo di confidenza di fattore 10, aumentiamo di 100 il numero di smiulazioni
+
+E.TG[[2]]
+
+nsim1<-nsim*100
+
+set.seed(1)
+TG1<-rGompertz(nsim1,x,alpha,beta)
+
+MonteCarlo(TG1)
+```
+
+8)  calcolare valore attuale atteso di:
+
+```{r}
+#BENEFICIO PAGABILE ALL'ISTANTE DI DECESSO
+
+# usando il modello in 7) e tasso d'interesse 2%
+
+set.seed(1)
+nsim <- 10000
+TG <- rGompertz(nsim,x=40,alpha=2.67433*10^-5,beta = log(1.098))
+i <- 0.02
+v <- 1 / (1 + i) #fattore di sconto
+
+# caso morte vita intera
+
+VA1<-v^TG
+MonteCarlo(VA1)
+
+FUN.VA1<-function(t)v^t*dGompertz(t,x,alpha,beta)
+integrate(f=FUN.VA1,lower=0,upper=Inf)
+
+# temporanea caso morte, scadenza 20 anni
+
+VA2<-v^TG*(TG<=20)
+MonteCarlo(VA2)
+
+integrate(f=FUN.VA1,lower=0,upper=20)
+
+# capitale differito, scadenza 10 anni
+
+VA3<-v^10*(TG>10)
+MonteCarlo(VA3)
+
+v^10*pGompertz(10,x,alpha,beta,lower.tail = F)
+
+#FARE LE PROSSIME DUE PER ESERCIZIO
+# mista
+#somma delle due precedenti
+
+# rendita vitalizia (continua)
+
+```
+
+9)  la legge forte dei grandi numeri (e Monte Carlo) non funziona con distribuzioni con media non definita
+
+provare a calcolare il valore atteso di una v.a. con distribuzione di Cauchy e confrontarlo con un'esponenziale poichè, dato che l'integrale per la speranza matematica non è finito, non riesco ad applicare la legge dei non ho per definizione la speranza matematica ma per la legge dei grandi numeri per la media campionaria posso simulare dei dati e calcolarla per via legge grandi numeri
+
+```{r}
+#mostreremo la differenza tra code pesanti e code leggere per le stime
+
+nsim=10000
+set.seed(1)
+x<-rcauchy(nsim)
+#una sorta di fdr empirica
+z<-cumsum(x)/seq_along(x)
+
+#plot(z,type="l") #concludiamo dal grafico che la distribuzione di cauchy ha code pesanti
+
+#summary(x)
+#range(x)
+
+set.seed(2)
+x1<-rcauchy(nsim)
+z1<-cumsum(x1)/seq_along(x1)
+#plot(z1,type="l")
+
+set.seed(3)
+x2<-rcauchy(nsim)
+z2<-cumsum(x2)/seq_along(x2)
+#plot(z2,type="l")
+
+set.seed(4)
+x3<-rcauchy(nsim)
+z3<-cumsum(x3)/seq_along(x3)
+#plot(z3,type="l")
+
+par(mfrow=c(2,2))
+plot(z,type="l")
+plot(z1,type="l")
+plot(z2,type="l")
+plot(z3,type="l")
+
+summary(x)
+range(x)
+
+#proviamo ora con la distribuzione esponenziale (code leggere)
+set.seed(1)
+xexp<-rexp(nsim)
+zexp<-cumsum(xexp)/seq_along(xexp)
+
+set.seed(2)
+x1exp<-rexp(nsim)
+z1exp<-cumsum(x1exp)/seq_along(x1exp)
+
+set.seed(3)
+x2exp<-rexp(nsim)
+z2exp<-cumsum(x2exp)/seq_along(x2exp)
+
+set.seed(4)
+x3exp<-rexp(nsim)
+z3exp<-cumsum(x3exp)/seq_along(x3exp)
+
+par(mfrow=c(2,2))
+plot(zexp,type="l")
+plot(z1exp,type="l")
+plot(z2exp,type="l")
+plot(z3exp,type="l")
+
+```
+
+10) metodo accetazione rifiuto per simulare una durata di vita con intensita' Makeham
+
+```{r}
+#algoritmo che implementa la teoria vista sulle slides con la bacinello
+rMakeham <- function(nsim, x, alpha, beta, gamma)
+{
+  Tx <- vector(mode = "numeric", length = nsim)
+  count <- 0
+  B <- exp(beta * x)
+  C <- 1 + gamma / (alpha * B)
+  repeat
+  {
+    Z1 <- rGompertz(nsim = 1, x, alpha, beta)
+    U <- runif(1)
+    f.Cg <- (gamma * exp(- beta * Z1) + alpha * B)/(gamma + alpha * B)* exp(- gamma * Z1)
+    if (U <= f.Cg)
+    {
+      count <- count + 1
+      Tx[count] <- Z1
+      if (count == nsim) break
+    }
+  }
+  return(Tx)
+}
+
+x <- 40
+alpha <- 2.67433 * 10 ^ -5
+beta <- log(1.098)
+gamma <- 0.001
+
+#debug(rMakeham)
+set.seed(0)
+system.time(TT <- rMakeham(nsim = 1000, x, alpha, beta, gamma))
+MonteCarlo(TT)
+
+dMakeham <- function(t, x, alpha, beta, gamma)
+{
+  B <- exp(beta * x)
+  return((gamma + alpha * B * exp(beta * t)) * exp(- gamma * t - ((alpha * B) / beta) * (exp(beta * t) - 1)))
+}
+
+integrate(function(t)(t * dMakeham(t, x = x, alpha = alpha, beta = beta, gamma = gamma)), lower = 0, upper = 80)
+```
+
+# 11) Calcolo di un integrale via montecarlo
+
+```{r}
+# Esempio: integrale di exp(-x ^ 2) / (x ^ 2 + 1)
+# su intervalli limitati e illimitati
+
+# integrazione su intervalli (limitati) diversi
+FUNab <- function(x, a, b, FUN)(b - a) * FUN(a + (b - a) * x)
+
+# su [1,2]
+FUN<-function(x)exp(-x^2)/(x^2+1)
+
+plot(FUN,-3,3)
+integrate(f=FUN,lower=1,upper=2)
+
+set.seed(1)
+U<-runif(nsim)
+MonteCarlo(FUNab(x=U,a=1,b=2,FUN=FUN))
+
+#fare per esercitarsi questi esempi
+
+# su [-0.1,0.1]
+
+# integrale su intervallo illimitato
+# cambi di variabile:
+# y = (exp(x) + 1) ^ -1
+# oppure
+# y = (arctg(x) - pi / 2) / pi
+
+```
+
+# 12) calcolo della funzione gamma
+
+```{r}
+#fare per esercizio
+
+# Gamma(a) = integrale su [0,+Inf) di x ^ (a - 1) * exp(- x)
+# cambio di variabile y = exp(- x)
+
+
+# cambio di variabile y = 1 / (x + 1)
+
+
+```
+
+# 13) Calcolo di integrali multidimensionali (su ipercubi) via MC
+
+```{r}
+# Esempio: f(x) = exp( - ||x|| ^ 2) integrato su [0,1] x ... x [0,1]
+#due modi diversi per definire la stessa funzione
+FUN <- function(x)exp(- x %*% x)
+FUN1 <- function(x)exp(- sum(x ^ 2))
+
+# valore corretto
+INT <- function(n)(sqrt(pi) * (pnorm(sqrt(2)) - 0.5)) ^ n
+
+# con il pacchetto "cubature"
+# install.packages("cubature")
+library(cubature)
+library(help = cubature)
+#?hcubature
+NUM <- function(n, ...)hcubature(f = FUN, lowerLimit = rep(0, n), upperLimit = rep(1, n), ...)
+
+# via MC
+
+INT.MC<-function(nsim,dim=1){
+  U<-matrix(runif(nsim*dim),nrow=dim)
+  X<-apply(X=U,MARGIN=2,FUN=FUN)
+  MonteCarlo(X)
+}
+
+# confronto
+nsim<-10^5
+
+# dimensione 1
+INT(1)
+NUM(n=1)$integral
+INT.MC(nsim=nsim,dim=1)
+
+# dimensione 2
+INT(2)
+NUM(n=2)$integral
+INT.MC(nsim=nsim,dim=2)[[1]]
+
+# dimensione 3
+INT(3)
+NUM(n=3)$integral
+INT.MC(nsim=nsim,dim=3)[[1]]
+
+# dimensione 7
+INT(7)
+NUM(n=7)$integral
+INT.MC(nsim=nsim,dim=7)[[1]]
+
+# dimensione 8
+INT(8)
+NUM(n=8)$integral
+INT.MC(nsim=nsim,dim=8)[[1]]
+
+# dimensione 10
+INT(10)
+system.time(print(NUM(n=10)$integral))
+INT.MC(nsim=nsim,dim=10)[[1]]
+
+# dimensione 20
+INT(20)
+NUM(n=20)$integral
+INT.MC(nsim=nsim,dim=20)[[1]]
+
+```

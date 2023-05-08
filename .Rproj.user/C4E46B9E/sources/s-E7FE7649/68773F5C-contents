@@ -1,0 +1,17 @@
+x=abs(rnorm(1000))**.5
+medie=NULL
+for(i in 1:100)
+{
+  medie=c(medie,mean(x**i)**(1/(i-50)))
+}
+
+absNorm = function (X)
+{
+  return (dnorm(X**.5))
+}
+curve(expr = absNorm,from = 0,to = 5,n = 100)
+
+for(i in 1:100)
+{
+  abline(v=medie[i])
+}
