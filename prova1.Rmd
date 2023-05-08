@@ -29,6 +29,7 @@ Nel seguente report vengono approfonditi, come da richiesta, alcuni degli aspett
 
 ```{r warning=FALSE}
 library(lifecontingencies)
+library(tibble)
 
 #' Gestione Portafoglio
 #' Dato un portafoglio, di rischi omogenei tra loro, la funzione calcola rendimento e andamento del fondo e i decessi 
@@ -87,6 +88,8 @@ gestionePortafoglio = function(#input
   {
     anniCopertura = omega - eta
   }
+  # vettore anni
+  anni = (eta+1):(anniCopertura + eta)
   
   calcoloVettoreTasso = function()
   {
@@ -223,17 +226,29 @@ gestionePortafoglio = function(#input
   }
   
   #Creazione dell'oggetto che la funzione dovrà tornare
-  Output = new.env()
-  Output$andamentoFondo = andamentoFondo
-  Output$rendimentoFondo = rendimentoFondo
-  Output$decessi = decessi
-  Output$premio = premio()
+  # print(c(length(anni),length(andamentoFondo),length(c(replicate(numeroPremi,premio()),
+  #                            rep(0,anniCopertura-numeroPremi)))))
+  Output = tibble(anni,
+                  andamentoFondo,
+                  rendimentoFondo,
+                  decessi[2:length(decessi)],
+                  premio = c(replicate(numeroPremi,premio()),
+                             rep(0,anniCopertura-numeroPremi)))
   
   return(Output)
   
 }
 
 ```
+
+#### Funzione stampaGrafico
+
+```{r}
+library(ggplot2)
+
+
+```
+
 
 ### Report
 
@@ -270,12 +285,28 @@ Dal momento che una funzione può ritornare soltanto una variabile, e noi necess
 ### Esempi
 
 ```{r warning=FALSE}
-o=gestionePortafoglio(numeroAssicurati = 10000,eta = 30,rata = 2000,fondoInizio = 0,numeroPremi = 10,differimento = 20,temporanea = TRUE,anniCopertura = 50,rendimentoFondoAnnuo = 0.02,tassoTecnico = 0.02,tassoAleatorio = TRUE)
-print(o$premio)
-plot(y = o$andamentoFondo,x = c(31:80),type="l")
-plot(y = o$rendimentoFondo,x = c(31:80),type="l")
-abline(h=0)
+o = gestionePortafoglio(
+  numeroAssicurati = 10000,
+  eta = 30,
+  rata = 2000,
+  fondoInizio = 0,
+  numeroPremi = 10,
+  differimento = 20,
+  temporanea = TRUE,
+  anniCopertura = 50,
+  rendimentoFondoAnnuo = 0.02,
+  tassoTecnico = 0.02,
+  tassoAleatorio = TRUE,
+  tavolaMortalita = demoIta$SIM92,
+  tavolaPeriodo = demoIta$SIF92
+)
+
+library(ggplot2)
+ggplot(o,aes(anni,andamentoFondo)) + geom_point()
+
 ```
+
+
 
 
 ```{r warning=FALSE}
