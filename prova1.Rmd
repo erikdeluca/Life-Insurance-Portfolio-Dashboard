@@ -1,10 +1,17 @@
 ---
-title: "Laboratorio statistico informatico"
-date: "29/8/2021"
+title: "Portafoglio di assicurati"
+author: "Erik De Luca"
+date: "2023-05-15"
 output:
-  html_document: default
-  word_document: default
-  pdf_document: default
+  html_document:
+    df_print: "paged"
+    code_folding: hide
+    toc: true
+    toc_color: "orchid"
+    theme: united
+    keep_md: true
+    toc_float: true
+    number_sections: true
 ---
 
 ### Introduzione
@@ -231,9 +238,11 @@ gestionePortafoglio = function(#input
   Output = tibble(anni,
                   andamentoFondo,
                   rendimentoFondo,
-                  decessi[2:length(decessi)],
-                  premio = c(replicate(numeroPremi,premio()),
-                             rep(0,anniCopertura-numeroPremi)))
+                  decessi = decessi[2:length(decessi)],
+                  premio = c(replicate(numeroPremi, premio()),
+                             rep(0, differimento-numeroPremi),
+                             rep(rata, anniCopertura-differimento)),
+                  tasso = tassoFinanziario)
   
   return(Output)
   
@@ -245,8 +254,54 @@ gestionePortafoglio = function(#input
 
 ```{r}
 library(ggplot2)
+install.packages(data.cube)
 
-
+stampaGrafici = function(dataFunzione)
+{
+  gg1 = ggplot(dataFunzione, aes(anni, andamentoFondo)) + 
+    geom_point() +
+    geom_line() + 
+    scale_y_continuous(labels = scales::unit_format(unit = "€")) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_minimal() +
+    annotate(geom = "text",x = max(dataFunzione$anni)*0.9,y = max(dataFunzione$andamentoFondo)*.8,
+             label = paste("Premio: €",
+                                    formatC(dataFunzione$premio[1],
+                                            big.mark=',',
+                                            digits = 2,
+                                            format = 'f'))) +
+    labs(title = "Andamento del fondo") + 
+    ylab(label = "Andamento del fondo") + 
+    xlab("Età della coorte di assicurati")
+   
+  gg2 = ggplot(dataFunzione, aes(anni, rendimentoFondo)) + 
+    geom_point() +
+    geom_line() + 
+    scale_y_continuous(labels = scales::unit_format(unit = "€")) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_minimal() +
+    labs(title = "Rendimento del fondo") + 
+    ylab(label = "Rendimento del fondo") + 
+    xlab("Età della coorte di assicurati")
+  
+  gg3 = ggplot(dataFunzione, aes(anni, decessi)) + 
+    geom_area(alpha = 0.5) + 
+    theme_minimal() +
+    labs(title = "Decessi") + 
+    ylab(label = "Decessi") + 
+    xlab("Età della coorte di assicurati")
+  
+  gg4 = ggplot(dataFunzione, aes(anni, tasso)) + 
+    geom_line() + 
+    theme_minimal() +
+    labs(title = "Tasso") + 
+    ylab(label = "Tasso") + 
+    xlab("Età della coorte di assicurati")
+  
+  gg = list(gg1,gg2,gg3,gg4)
+  
+  return(gg)
+}
 ```
 
 
@@ -301,8 +356,7 @@ o = gestionePortafoglio(
   tavolaPeriodo = demoIta$SIF92
 )
 
-library(ggplot2)
-ggplot(o,aes(anni,andamentoFondo)) + geom_point()
+stampaGrafici(o)[[3]]
 
 ```
 
