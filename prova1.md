@@ -34,12 +34,11 @@ Nel seguente report vengono approfonditi, come da richiesta, alcuni degli aspett
 
 # La funzione
 
-```{r,echo=FALSE,include=FALSE}
-library(lifecontingencies)
-```
 
 
-```{r warning=FALSE}
+
+
+```r
 library(tibble)
 
 #' Gestione Portafoglio
@@ -251,12 +250,12 @@ gestionePortafoglio = function(#input
   return(Output)
   
 }
-
 ```
 
 ## Funzione stampaGrafico
 
-```{r,warning=FALSE}
+
+```r
 library(ggplot2)
 # library(hrbrthemes) # for ggplot's theme
 
@@ -350,7 +349,8 @@ Dal momento che una funzione può ritornare soltanto una variabile, e noi necess
 
 ## Esempi
 
-```{r warning=FALSE}
+
+```r
 o = gestionePortafoglio(
   numeroAssicurati = 10000,
   eta = 30,
@@ -369,16 +369,33 @@ o = gestionePortafoglio(
 )
 
 stampaGrafici(o)[[1]]
-stampaGrafici(o)[[2]]
-stampaGrafici(o)[[3]]
-stampaGrafici(o)[[4]]
-
 ```
 
+![](prova1_files/figure-html/unnamed-chunk-4-1.png)<!-- -->
+
+```r
+stampaGrafici(o)[[2]]
+```
+
+![](prova1_files/figure-html/unnamed-chunk-4-2.png)<!-- -->
+
+```r
+stampaGrafici(o)[[3]]
+```
+
+![](prova1_files/figure-html/unnamed-chunk-4-3.png)<!-- -->
+
+```r
+stampaGrafici(o)[[4]]
+```
+
+![](prova1_files/figure-html/unnamed-chunk-4-4.png)<!-- -->
 
 
 
-```{r warning=FALSE}
+
+
+```r
 o = gestionePortafoglio(
   numeroAssicurati = 1000,
   eta = 30,
@@ -398,14 +415,32 @@ o = gestionePortafoglio(
 # plot(y = o$rendimentoFondo,x = c(31:70),type="l")
 # abline(h=0)
 stampaGrafici(o)[[1]]
+```
+
+![](prova1_files/figure-html/unnamed-chunk-5-1.png)<!-- -->
+
+```r
 stampaGrafici(o)[[2]]
+```
+
+![](prova1_files/figure-html/unnamed-chunk-5-2.png)<!-- -->
+
+```r
 stampaGrafici(o)[[3]]
+```
+
+![](prova1_files/figure-html/unnamed-chunk-5-3.png)<!-- -->
+
+```r
 stampaGrafici(o)[[4]]
 ```
 
+![](prova1_files/figure-html/unnamed-chunk-5-4.png)<!-- -->
+
 # Metodo Monte Carlo
 
-```{r warning=FALSE}
+
+```r
 #' MonteCarlo
 #'
 #' @param x 
@@ -456,8 +491,24 @@ MonteCarlo <- function(x,
 
 Per la simulazione si è definita una funzione `monteCarlo` con lo scopo, a partire da una simulazione arbitrariamente grande ($10^5$ per motivi di computazione) della variabile osservata, di stabilire, grazie alla legge dei grandi numeri, il vero valore teorico della distribuzione simulata.
 
-```{r warning=FALSE}
+
+```r
 library(hrbrthemes) # for ggplot's theme
+```
+
+```
+## NOTE: Either Arial Narrow or Roboto Condensed fonts are required to use these themes.
+```
+
+```
+##       Please use hrbrthemes::import_roboto_condensed() to install Roboto Condensed and
+```
+
+```
+##       if Arial Narrow is not on your system, please see https://bit.ly/arialnarrow
+```
+
+```r
 x = replicate(10 ** 3,
               gestionePortafoglio(fondoInizio = 1000,
                                   numeroAssicurati = 100,
@@ -466,7 +517,15 @@ x = replicate(10 ** 3,
                                   )$andamentoFondo[90])
 
 MonteCarlo(x)$Tabella
+```
 
+<div data-pagedtable="false">
+  <script data-pagedtable-source type="application/json">
+{"columns":[{"label":["ValoreAtteso"],"name":[1],"type":["dbl"],"align":["right"]},{"label":["VarianzaCampionaria"],"name":[2],"type":["dbl"],"align":["right"]},{"label":["intervalloConfidenzaInferiore"],"name":[3],"type":["dbl"],"align":["right"]},{"label":["intervalloConfidenzaSuperiore"],"name":[4],"type":["dbl"],"align":["right"]}],"data":[{"1":"865035.8","2":"15129.7","3":"835382.1","4":"894689.4"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
+  </script>
+</div>
+
+```r
 x %>% 
   tibble %>% 
   ggplot(aes(x, y = ..density..)) +
@@ -482,11 +541,14 @@ x %>%
   theme_ipsum()
 ```
 
+![](prova1_files/figure-html/unnamed-chunk-7-1.png)<!-- -->
+
 # Funzione aggiuntiva: Capitale minimo 
 
 Per sfruttare al meglio `MonteCarlo` e `gestionePortafoglio` è stata sviluppata la funzione `CapitaleMinimo`, il suo obiettivo è quello di definire il capitale iniziale da allocare al portafoglio in modo tale che la probabilità di rovina (all'ultimo anno della rendita) sia al di sotto di quella prefissata (in questa caso consideriamo il 5%). Il problema lo si potrebbe estendere anche agli anni precedenti all'ultimo della rendita, in modo che la probabilità di rovina sia sempre sotto la soglia; per fare ciò basterebbe inserire la funzione CapitaleMinimo all'interno di un ciclo `for` con l'indice che va da 1 agli anni della rendita. Inoltre, l'idea della funzione è che dati i parametri a meno di uno, la funzione calcola il *p-value* per la variabile incognita. Quindi, la funzione con piccole modifiche può essere estesa anche agli altri parametri della funzione `gestionePortafoglio`. Per cercare il capitale minimo si utilizza un processo ricorsivo in cui iniziando da $0$ (il capitale minimo), lo si aumenta e si verifica se rispetta la condizione della probabilità di rovina, il capitale viene aumentato secondo una formula in modo tale da snellire e abbreviare la procedura, ottenendo così un risultato meno preciso.
 
-```{r warning=FALSE}
+
+```r
 #' Capitale Minimo
 #'
 #' @param numeroAssicurati 
@@ -593,4 +655,9 @@ capitaleMinimo = function (numeroAssicurati = 1000,
 
 capMin = capitaleMinimo(rendimentoFondoAnnuo = 0.015,tassoTecnico = 0.02,precisione = 100)
 capMin
+```
+
+```
+##      5% 
+## 2070065
 ```
