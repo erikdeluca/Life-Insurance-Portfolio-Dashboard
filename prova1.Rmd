@@ -425,7 +425,7 @@ MonteCarlo <- function(x,
   monteCarlo$valAtteso = mean(x)
   monteCarlo$varianzaCampionaria = sd(x) / sqrt(nSimulazioni - 1)
   #lower tail = false indica che la prob diverta 1-alpha al posto di alpha
-  z = qnorm((1 - level) / 2, lower.tail = FALSE)
+  z = qnorm((1 - level)/2, lower.tail = FALSE)
   intConfLow = monteCarlo$valAtteso - z * monteCarlo$varianzaCampionaria
   intConfUp = monteCarlo$valAtteso + z * monteCarlo$varianzaCampionaria
   monteCarlo$intervalloConfidenza = c(intConfLow, intConfUp)
@@ -479,6 +479,13 @@ x %>%
                alpha = 0.3, # densità del colore 
                kernel = "gaussian",
                adjust = 1) +
+  geom_vline(xintercept = 0, 
+             color = "orchid4") +
+  annotate("text",
+           x = 2E5,
+           y = max(density(x)$y),
+           label = sum(x>0)/length(x),
+           color = "orchid4") +
   theme_ipsum()
 ```
 
