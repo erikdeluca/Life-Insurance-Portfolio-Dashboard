@@ -25,6 +25,15 @@ ui <- fluidPage(
     # Sidebar with a slider input for number of bins 
     sidebarLayout(
         sidebarPanel(
+            # style = "position:fixed;width:inherit;",
+            # "Inputs",
+            style = "height: 90vh; overflow-y: auto;",
+            width = 3,
+            numericInput("rate", "Valore delle rate", 12000, min = 0,step = 100),
+            numericInput("tassoAleatorio", "Tasso aleatorio del fondo", .03, min = 0,step = .001),
+            numericInput("tassoTecnico", "Tasso tecnico per il calcolo del premio", .03, min = 0,step = .001),
+            numericInput("fondoIniziale", "Importo del fondo iniziale", 0, min = 0,step = 10000),
+            numericInput("numeroAssicurati", "Numero di assicurati", 1000, min = 0,step = 100),
             sliderInput("eta",
                         "Eta degli assicurati",
                         min = 1,
@@ -36,32 +45,48 @@ ui <- fluidPage(
         
         # Show a plot of the generated distribution
         mainPanel(
-           plotOutput("andamentoFondoPlot")
+          
+          tabsetPanel(tabPanel("Andamento Fondo", plotOutput("andamentoFondoPlot")),
+                      tabPanel("Rendimento Fondo", plotOutput("rendimentoFondoPlot")))
         )
     )
 )
 
+
+
 # Define server logic required to draw a histogram
 server <- function(input, output) {
   
-    # output$distPlot <- renderPlot({
-    #     # generate bins based on input$bins from ui.R
-    #     x    <- faithful[, 2]
-    #     bins <- seq(min(x), max(x), length.out = input$bins + 1)
-    # 
-    #     # draw the histogram with the specified number of bins
-    #     hist(x, breaks = bins, col = 'darkgray', border = 'white',
-    #          xlab = 'Waiting time to next eruption (in mins)',
-    #          main = 'Histogram of waiting times')
-    # })
+  
     output$andamentoFondoPlot = renderPlot({
       obj = gestionePortafoglio(eta = input$eta,
                                 differimento = input$periodo[1] - input$eta,
                                 anniCopertura = input$periodo[2] - input$eta,
                                 numeroPremi = input$numPremi,
-                                temporanea = T)
+                                temporanea = T,
+                                omega = omega,
+                                rata = input$rate,
+                                tassoAleatorio = input$tassoAleatorio,
+                                tassoTecnico = input$tassoTecnico,
+                                numeroAssicurati = input$numeroAssicurati,
+                                fondoInizio = input$fondoIniziale)
       stampaGrafici(obj)[[1]]
-    })
+      })
+    output$rendimentoFondoPlot = renderPlot({
+      obj = gestionePortafoglio(eta = input$eta,
+                                differimento = input$periodo[1] - input$eta,
+                                anniCopertura = input$periodo[2] - input$eta,
+                                numeroPremi = input$numPremi,
+                                temporanea = T,
+                                omega = omega,
+                                rata = input$rate,
+                                tassoAleatorio = input$tassoAleatorio,
+                                tassoTecnico = input$tassoTecnico,
+                                numeroAssicurati = input$numeroAssicurati, 
+                                fondoInizio = input$fondoIniziale)
+      stampaGrafici(obj)[[2]]
+      })
+    
     
     ###INPUT###
     # SlideBar: differimento e durata
@@ -92,11 +117,11 @@ server <- function(input, output) {
     })
     observeEvent(input$eta, {
       premiMax$value <- input$periodo[1] - input$eta
-      numPremiValue = input$numPremi
+      # numPremiValue$value = input$numPremi
     })
     observeEvent(input$periodo, {
       premiMax$value <- input$periodo[1] - input$eta
-      numPremiValue = input$numPremi
+      # numPremiValue$value = input$numPremi
     })
 
     
