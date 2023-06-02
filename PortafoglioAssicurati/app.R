@@ -30,7 +30,7 @@ ui <- fluidPage(
             style = "height: 90vh; overflow-y: auto;",
             width = 3,
             numericInput("rate", "Valore delle rate", 12000, min = 0,step = 100),
-            numericInput("tassoAleatorio", "Tasso aleatorio del fondo", .03, min = 0,step = .001),
+            numericInput("tassoAleatorio", "Tasso aleatorio del fondo", .04, min = 0,step = .001),
             numericInput("tassoTecnico", "Tasso tecnico per il calcolo del premio", .03, min = 0,step = .001),
             numericInput("fondoIniziale", "Importo del fondo iniziale", 0, min = 0,step = 10000),
             numericInput("numeroAssicurati", "Numero di assicurati", 1000, min = 0,step = 100),
@@ -40,7 +40,8 @@ ui <- fluidPage(
                         max = omega,
                         value = 30),
             uiOutput("sliderDiffDurata"),
-            uiOutput("sliderNumPremi")
+            uiOutput("sliderNumPremi"),
+            uiOutput("sliderRateGarantiteDurata")
         ),
         
         # Show a plot of the generated distribution
@@ -69,7 +70,8 @@ server <- function(input, output) {
                                 tassoAleatorio = input$tassoAleatorio,
                                 tassoTecnico = input$tassoTecnico,
                                 numeroAssicurati = input$numeroAssicurati,
-                                fondoInizio = input$fondoIniziale)
+                                fondoInizio = input$fondoIniziale,
+                                rateGarantiteDurata = input$rateGarantite)
       stampaGrafici(obj)[[1]]
       })
     output$rendimentoFondoPlot = renderPlot({
@@ -100,7 +102,7 @@ server <- function(input, output) {
                   )
     })
     observeEvent(input$eta, {
-      etaIniziale$value <- input$eta
+      etaIniziale$value <- input$eta + 1
     })
     
     # SlideBar: numero di premi
@@ -123,8 +125,22 @@ server <- function(input, output) {
       premiMax$value <- input$periodo[1] - input$eta
       # numPremiValue$value = input$numPremi
     })
-
     
+    # slider rate garantite
+    rateGarantiteMax <- reactiveValues(max = omega, value = 1)
+    output$sliderRateGarantiteDurata <- renderUI({
+      sliderInput("rateGarantite",
+                  "Numero di rate garantite",
+                  min = 0,
+                  max = rateGarantiteMax$value,
+                  value = 0,
+                  step = 1
+      )
+    })
+    observeEvent(input$periodo, {
+      rateGarantiteMax$value <- input$periodo[2] - input$periodo[1]
+    })
+
 }
 
 # Run the application 
