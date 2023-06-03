@@ -30,8 +30,9 @@ ui <- fluidPage(
             style = "height: 90vh; overflow-y: auto;",
             width = 3,
             numericInput("rate", "Valore delle rate", 12000, min = 0,step = 100),
-            numericInput("tassoAleatorio", "Tasso aleatorio del fondo", .04, min = 0,step = .001),
             numericInput("tassoTecnico", "Tasso tecnico per il calcolo del premio", .03, min = 0,step = .001),
+            numericInput("rendimentoFondoAnnuo", "Rendimento annuo del fondo", .03, min = 0,step = .001),
+            checkboxInput("tassoAleatorio", "Rendimento aleatorio del fondo", value = TRUE),
             numericInput("fondoIniziale", "Importo del fondo iniziale", 0, min = 0,step = 10000),
             numericInput("numeroAssicurati", "Numero di assicurati", 1000, min = 0,step = 100),
             sliderInput("eta",
@@ -71,7 +72,8 @@ server <- function(input, output) {
                                 tassoTecnico = input$tassoTecnico,
                                 numeroAssicurati = input$numeroAssicurati,
                                 fondoInizio = input$fondoIniziale,
-                                rateGarantiteDurata = input$rateGarantite)
+                                rateGarantiteDurata = input$rateGarantite,
+                                rendimentoFondoAnnuo = input$rendimentoFondoAnnuo)
       stampaGrafici(obj)[[1]]
       })
     output$rendimentoFondoPlot = renderPlot({
@@ -85,7 +87,9 @@ server <- function(input, output) {
                                 tassoAleatorio = input$tassoAleatorio,
                                 tassoTecnico = input$tassoTecnico,
                                 numeroAssicurati = input$numeroAssicurati, 
-                                fondoInizio = input$fondoIniziale)
+                                fondoInizio = input$fondoIniziale,
+                                rendimentoFondoAnnuo = input$rendimentoFondoAnnuo,
+                                rateGarantiteDurata = input$rateGarantite)
       stampaGrafici(obj)[[2]]
       })
     

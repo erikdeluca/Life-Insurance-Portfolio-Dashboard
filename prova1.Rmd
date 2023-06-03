@@ -73,7 +73,7 @@ gestionePortafoglio = function(#input
   numeroAssicurati = 1000,
   eta = 20,
   rata = 1000,
-  fondoInizio = 100000,
+  fondoInizio = 0,
   numeroPremi = 15,
   omega = 110,
   differimento = 25,
@@ -84,7 +84,7 @@ gestionePortafoglio = function(#input
   rendimentoFondoAnnuo = 0.02,
   # tasso finanziario
   tassoAleatorio = TRUE,
-  tavolaMortalita = demoIta$RG48M,
+  tavolaMortalita = demoIta$SIM02,
   #tavola utilizzata per la base tecnica
   tassoTecnico = 0.02,
   #tasso utilizzato per la base tecnica
@@ -104,10 +104,11 @@ gestionePortafoglio = function(#input
   
   calcoloVettoreTasso = function()
   {
+    # DA FARE: random walk
     #il tasso si distribuisce come una normale
-    ifelse(tassoAleatorio, return(rnorm(
+    return(ifelse(tassoAleatorio, rnorm(
       anniCopertura, mean = rendimentoFondoAnnuo, sd = 0.01
-    )), return(rep(rendimentoFondoAnnuo, anniCopertura)))
+    ), rep(rendimentoFondoAnnuo, anniCopertura)))
     # accettiamo la possibilità di deflazione nel caso del aleatorio
   }
   
@@ -122,12 +123,12 @@ gestionePortafoglio = function(#input
       sopravissuti = numeroAssicurati - sum(died)
       #mu = probabilità di decesso nell'anno i condizionatamente che siano in vita all'anno i
       mu =  (tavolaPeriodo[i + 1] - ifelse(i > (omega - 2), 0, tavolaPeriodo[i +
-                                                                               2])) / ifelse(i > (omega - 1), 1, tavolaPeriodo[i + 1])
+                                                                               2])) / ifelse(i > (omega - 1), 1, tavolaPeriodo[eta + 1])
       #genera i morti da una normale con media quelli che in linea teorica dovrebbero morire
       mortiCasuali = abs(rnorm(1, sopravissuti * mu, mu))
       #arrotonda agli interi il numero di morti e nel caso sia > dei sopravissuti, li uccide tutti
       died = round(c(
-        died,
+        died, 
         ifelse(mortiCasuali > sopravissuti, sopravissuti, mortiCasuali)
       ),
       digits = 0) #le persone sono interi e quindi si arrotonda a degli interi
@@ -158,19 +159,8 @@ gestionePortafoglio = function(#input
     {
       p = rata * (sum((1 + tassoTecnico) ** -c((differimento + 1):(differimento + 1 + rateGarantiteDurata)
       )) + sum((1 + tassoTecnico) ** -c((differimento + 1 + rateGarantiteDurata):anniCopertura
-      ) * hPx(c((differimento + 1 + rateGarantiteDurata):anniCopertura
+      ) * hPx(c((differimento + 2 + rateGarantiteDurata):anniCopertura
       ), eta)))
-      if (numeroPremi == 1)
-      {
-        return(p)
-      } else
-      {
-        return(p / sum((1 + tassoTecnico) ** -c(0:(
-          numeroPremi - 1
-        )) * hPx(c(
-          0:(numeroPremi - 1)
-        ), eta))) # parte da zero perché la prima la pagano tutti
-      }
     } else
     {
       p = rata * sum((1 + tassoTecnico) ** -(c((
@@ -178,20 +168,18 @@ gestionePortafoglio = function(#input
       ):anniCopertura)) * hPx(c((
         differimento + 1
       ):anniCopertura), eta))
-      
-      if (numeroPremi == 1)
-      {
-        return(p)
-      } else
-      {
-        return(p / sum((1 + tassoTecnico) ** -c(0:(
-          numeroPremi - 1
-        )) * hPx(c(
-          0:(numeroPremi - 1)
-        ), eta))) # parte da zero perché la prima la pagano tutti
-      }
-      
     }
+    
+    if (numeroPremi == 1)
+    {
+      return(p)
+    } else
+    {
+      return(p / sum((1 + tassoTecnico) ** -c(0:(numeroPremi - 1)) * hPx(c(
+        0:(numeroPremi - 1)
+      ), eta))) # parte da zero perché la prima la pagano tutti
+    }
+    
     return(-1) # nel caso l'utente inserisca rate garantite negative. Sì potrebbe mettere un try and catch
   }
   
@@ -208,34 +196,36 @@ gestionePortafoglio = function(#input
       andamentoFondo = c(andamentoFondo,
                          (
                            ifelse(t > numeroPremi, 0, hAV(t) * premio()) +
-                             ifelse(t > 1, andamentoFondo[t -
-                                                            1], fondoInizio)
+                             ifelse(t > 1, andamentoFondo[t - 1], fondoInizio)
                          ) * (1 + tassoFinanziario[t]))
-      rendimentoFondo = c(rendimentoFondo,
-                          andamentoFondo[t] - ifelse(t > 1, andamentoFondo[t - 1], fondoInizio))
-    }
+      }
   }
   
   # calcolo del fondo dall'inizio del pagamento delle rate
   for (t in (differimento + 1):(anniCopertura))
   {
-    andamentoFondo = c(andamentoFondo, (
+    # le rate vanno pagate alla fine dell'anno, quindi devono essere capitalizzate anch'esse
+    andamentoFondo = c(andamentoFondo, 
       ifelse(
         t > 1,
         andamentoFondo[t - 1],
         fondoInizio + premio() * numeroAssicurati
-      ) -
+      ) * (1 + tassoFinanziario[t]) -
         (
           rata * ifelse((t - differimento) > rateGarantiteDurata,
                         hAV(t + 1),
                         numeroAssicurati
           )
         )
-    ) * (1 + tassoFinanziario[t]))
-    rendimentoFondo = c(rendimentoFondo,
-                        andamentoFondo[t] - ifelse(t > 1, andamentoFondo[t - 1], fondoInizio))
+     )
   }
   
+    
+    
+  rendimentoFondo = andamentoFondo - c(fondoInizio,andamentoFondo[1:(length(andamentoFondo) - 1)])
+
+  
+    
   #Creazione dell'oggetto che la funzione dovrà tornare
   # print(c(length(anni),length(andamentoFondo),length(c(replicate(numeroPremi,premio()),
   #                            rep(0,anniCopertura-numeroPremi)))))
