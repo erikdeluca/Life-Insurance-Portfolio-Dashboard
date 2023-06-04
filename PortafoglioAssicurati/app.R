@@ -52,8 +52,10 @@ ui <- fluidPage(
         mainPanel(
           
           tabsetPanel(tabPanel("Andamento Fondo", plotOutput("andamentoFondoPlot")),
+                      tabPanel("Rendimento Fondo", plotOutput("rendimentoFondoPlot")),
                       tabPanel("Decessi", plotOutput("decessi")),
-                      tabPanel("Rendimento Fondo", plotOutput("rendimentoFondoPlot")))
+                      tabPanel("Monte Carlo", plotOutput("monteCarloPlot"))
+                      )
         )
     )
 )
@@ -65,7 +67,8 @@ server <- function(input, output) {
    
   library(lifecontingencies)
   
-  tavolaList = demoIta
+  # configurazione variabili iniziali
+  numPremiIniziale = 1
    
   callPortafoglio = reactive(
   {
@@ -84,8 +87,51 @@ server <- function(input, output) {
                                rendimentoFondoAnnuo = input$rendimentoFondoAnnuo,
                                tavolaPeriodo = demoIta[,names(demoIta) == input$tavolaPeriodo], 
                                tavolaMortalita = demoIta[,names(demoIta) == input$tavolaTecnica]))
-    
+    numPremiIniziale = numPremiValue$value
   })
+  
+    output$monteCarloPlot = renderPlot({
+      x = c()
+      for(i in 1:1E3)
+      {
+        # v = callPortafoglio()$andamentoFondo;
+        v = gestionePortafoglio(eta = input$eta,
+                            differimento = input$periodo[1] - input$eta,
+                            anniCopertura = input$periodo[2] - input$eta,
+                            numeroPremi = input$numPremi,
+                            temporanea = T,
+                            omega = omega,
+                            rata = input$rate,
+                            tassoAleatorio = input$tassoAleatorio,
+                            tassoTecnico = input$tassoTecnico,
+                            numeroAssicurati = input$numeroAssicurati,
+                            fondoInizio = input$fondoIniziale,
+                            rateGarantiteDurata = input$rateGarantite,
+                            rendimentoFondoAnnuo = input$rendimentoFondoAnnuo,
+                            tavolaPeriodo = demoIta[,names(demoIta) == input$tavolaPeriodo], 
+                            tavolaMortalita = demoIta[,names(demoIta) == input$tavolaTecnica])$andamentoFondo
+        x = c(x,v[length(v)])
+      }
+      x %>% 
+        tibble %>% 
+        ggplot(aes(x, y = ..density..)) +
+        geom_histogram(color = "orchid",
+                       fill = "orchid",
+                       alpha = 0.5,
+                       bins = 50) +
+        geom_density(color = "paleturquoise",
+                     fill = "paleturquoise",
+                     alpha = 0.3, # densità del colore 
+                     kernel = "gaussian",
+                     adjust = 1) +
+        geom_vline(xintercept = 0,
+        color = "orchid4") +
+        annotate("text",
+                 x = 2E5,
+                 y = max(density(x)$y),
+                 label = sum(x>0)/length(x),
+                 color = "orchid4")
+    })
   
     output$andamentoFondoPlot = renderPlot({
       obj = callPortafoglio()
@@ -119,14 +165,14 @@ server <- function(input, output) {
     })
     
     # SlideBar: numero di premi
-    numPremiValue = reactiveValues(value = 1)
+    numPremiValue = reactiveValues(value = numPremiIniziale)
     premiMax <- reactiveValues(max = omega, value = 4)
     output$sliderNumPremi <- renderUI({
       sliderInput("numPremi",
                   "Numero di premi",
                   min = 1,
                   max = premiMax$value,
-                  value = numPremiValue$value,
+                  value = numPremiIniziale,
                   step = 1
       )
     })
