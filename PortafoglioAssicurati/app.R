@@ -42,13 +42,17 @@ ui <- fluidPage(
                         value = 30),
             uiOutput("sliderDiffDurata"),
             uiOutput("sliderNumPremi"),
-            uiOutput("sliderRateGarantiteDurata")
+            uiOutput("sliderRateGarantiteDurata"),
+            # si potrebbe anche inserire tavole di diversa nazionalità
+            selectInput("tavolaTecnica", "Tavola tecnica", names(demoIta), selected = names(demoIta)[6]),
+            selectInput("tavolaPeriodo", "Tavola di periodo", names(demoIta), selected = names(demoIta)[6])
         ),
         
         # Show a plot of the generated distribution
         mainPanel(
           
           tabsetPanel(tabPanel("Andamento Fondo", plotOutput("andamentoFondoPlot")),
+                      tabPanel("Decessi", plotOutput("decessi")),
                       tabPanel("Rendimento Fondo", plotOutput("rendimentoFondoPlot")))
         )
     )
@@ -58,39 +62,44 @@ ui <- fluidPage(
 
 # Define server logic required to draw a histogram
 server <- function(input, output) {
+   
+  library(lifecontingencies)
   
+  tavolaList = demoIta
+   
+  callPortafoglio = reactive(
+  {
+    return(gestionePortafoglio(eta = input$eta,
+                               differimento = input$periodo[1] - input$eta,
+                               anniCopertura = input$periodo[2] - input$eta,
+                               numeroPremi = input$numPremi,
+                               temporanea = T,
+                               omega = omega,
+                               rata = input$rate,
+                               tassoAleatorio = input$tassoAleatorio,
+                               tassoTecnico = input$tassoTecnico,
+                               numeroAssicurati = input$numeroAssicurati,
+                               fondoInizio = input$fondoIniziale,
+                               rateGarantiteDurata = input$rateGarantite,
+                               rendimentoFondoAnnuo = input$rendimentoFondoAnnuo,
+                               tavolaPeriodo = demoIta[,names(demoIta) == input$tavolaPeriodo], 
+                               tavolaMortalita = demoIta[,names(demoIta) == input$tavolaTecnica]))
+    
+  })
   
     output$andamentoFondoPlot = renderPlot({
-      obj = gestionePortafoglio(eta = input$eta,
-                                differimento = input$periodo[1] - input$eta,
-                                anniCopertura = input$periodo[2] - input$eta,
-                                numeroPremi = input$numPremi,
-                                temporanea = T,
-                                omega = omega,
-                                rata = input$rate,
-                                tassoAleatorio = input$tassoAleatorio,
-                                tassoTecnico = input$tassoTecnico,
-                                numeroAssicurati = input$numeroAssicurati,
-                                fondoInizio = input$fondoIniziale,
-                                rateGarantiteDurata = input$rateGarantite,
-                                rendimentoFondoAnnuo = input$rendimentoFondoAnnuo)
+      obj = callPortafoglio()
       stampaGrafici(obj)[[1]]
       })
+    
     output$rendimentoFondoPlot = renderPlot({
-      obj = gestionePortafoglio(eta = input$eta,
-                                differimento = input$periodo[1] - input$eta,
-                                anniCopertura = input$periodo[2] - input$eta,
-                                numeroPremi = input$numPremi,
-                                temporanea = T,
-                                omega = omega,
-                                rata = input$rate,
-                                tassoAleatorio = input$tassoAleatorio,
-                                tassoTecnico = input$tassoTecnico,
-                                numeroAssicurati = input$numeroAssicurati, 
-                                fondoInizio = input$fondoIniziale,
-                                rendimentoFondoAnnuo = input$rendimentoFondoAnnuo,
-                                rateGarantiteDurata = input$rateGarantite)
+      obj = callPortafoglio()
       stampaGrafici(obj)[[2]]
+      })
+    
+    output$decessi = renderPlot({
+      obj = callPortafoglio()
+      stampaGrafici(obj)[[3]]
       })
     
     
@@ -146,6 +155,7 @@ server <- function(input, output) {
     })
 
 }
+
 
 # Run the application 
 shinyApp(ui = ui, server = server)
