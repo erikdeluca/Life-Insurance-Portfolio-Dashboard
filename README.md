@@ -6,5 +6,12 @@ Nella primavera del 2023 ho deciso di riprendere il progetto per migliorarlo, da
 Il progetto è ancora in fase di sviluppo.
 
 Shiny App -> app.R
+Per lanciare l'applicazione da R:
+1. Installare la libreria Shiny
+  install.packages("shiny")
+2. Lanciare il progetto
+  runGitHub("Portafoglio-assicurazioni-vita","erikdeluca",subdir = "PortafoglioAssicurati")
 
+HTML -> prova1.html
 Rmarkdown -> prova1.rmd
+
