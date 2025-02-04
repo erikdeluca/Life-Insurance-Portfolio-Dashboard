@@ -3,8 +3,11 @@ ui <- navbarPage(
   # navbarMenu("Menu",
   #            tabPanel("Home", "Home"),
   #            tabPanel("About", "About"),
-  #            tabPanel("Contact", "Contact")
+  #            tabPanel("Contact", "Contact"),
+  #             
   # ),
+  # navbarMenu("Fixed Rates"),
+  # navbarMenu("Fixed Premiums"),
   title = "Life Insurance Portfolio Analysis",
   
   # Sidebar layout with input and output definitions
@@ -19,7 +22,7 @@ ui <- navbarPage(
         h4("Time Inputs"),
         
         # Input: advance or deferred payment
-        radioButtons("advance_deferred_payment", "Advance or deferred payment",
+        prettyRadioButtons("advance_deferred_payment", "Advance or deferred payment",
                      choices = c("Advance", "Deferred"),
                      selected = "Deferred", inline = TRUE
                      ),
@@ -52,6 +55,10 @@ ui <- navbarPage(
           numericInput("technical_rate", "Technical rate", value = 0.02, min = 0, max = 1, step = 0.01),
         ),
         
+        # aleatory rate
+        prettySwitch("aleatory_rate", "Aleatory rate",status = "primary", value = TRUE, inline = T),
+        
+        
         # Mortality
         column(width = 6,
           # Input: technical table
@@ -63,11 +70,15 @@ ui <- navbarPage(
   
         column(width = 6,
           # Input: simulation table
-          selectInput("technical_table",
+          selectInput("simulation_table",
                       "Simulation table",
                       choices = names(demoIta),
                       selected = names(demoIta)[6]),
-        )
+        ),
+        
+        # aleatory mortality 
+        prettySwitch("aleatory_mortality", "Aleatory mortality",status = "primary", value = TRUE, inline = T),
+        
       ), # END fluidRow
       
       # FUNDS INPUTS
@@ -86,7 +97,7 @@ ui <- navbarPage(
         
         column(width = 6,
           # Input: Rate
-          numericInput("rate", "Rate", value = 12E3, min = 0),
+          numericInput("annuity", "Annuity", value = 12E3, min = 0),
         ),
         
         column(width = 6,
@@ -107,17 +118,15 @@ ui <- navbarPage(
       tabsetPanel(
         
         # first tab: 
-        tabPanel("Cumulate Fund Performance",
+        tabPanel("Fund Performance",
                  h3("Plot"),
-                 # plotOutput("cumulate_fund_performance_plot"
-                 #            
-                 #            ),
+                 plotOutput("fund_performance_plot"),
                  h3("Data"),
                  # dataTableOutput("cumulate_fund_performance_table")
         ), # END first tabPanel
         
         # second tab
-        tabPanel("Fund Performance",
+        tabPanel("Yearly Fund Performance",
                  h3("Plot"),
                  # plotOutput("cumulate_fund_performance_plot"
                  #            
