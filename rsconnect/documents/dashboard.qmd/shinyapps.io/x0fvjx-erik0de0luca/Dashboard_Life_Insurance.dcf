@@ -1,0 +1,15 @@
+name: Dashboard_Life_Insurance
+title: Dashboard_Life_Insurance
+username: x0fvjx-erik0de0luca
+account: x0fvjx-erik0de0luca
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 13830060
+bundleId: 9711858
+url: https://x0fvjx-erik0de0luca.shinyapps.io/Dashboard_Life_Insurance/
+version: 1
+quarto_version: 1.5.57
+quarto_engines: knitr
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: dashboard_example.html|dashboard_example.qmd|PortafoglioAssicurati/app.R|prova1.docx|prova1.html|prova1.log|prova1.md|prova1.Rmd|prova1.tex

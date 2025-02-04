@@ -1,0 +1,464 @@
+# load packages --------------------------------------------------------------
+library(shiny)
+library(shinyWidgets)
+library(shinycssloaders)
+library(DT)
+library(lifecontingencies)
+library(tidyverse)
+library(ggplot2)
+
+lifetable <- data(package = "lifecontingencies")$results[, "Item"]
+omega <- 110
+numPremiIniziale <- 1
+
+#' Gestione Portafoglio
+#' Dato un portafoglio, di rischi omogenei tra loro, la funzione calcola rendimento e andamento del fondo e i decessi 
+#'
+#' @param numeroAssicurati 
+#' @param eta età degli assicurati
+#' @param rata importo della rata annuale
+#' @param fondoInizio importo iniziale del fondo
+#' @param numeroPremi numero di premi che gli assicurati pagheranno
+#' @param omega età massima raggiungibile
+#' @param differimento rendita differita o immediata
+#' @param temporanea rendita vitalizia o temporanea
+#' @param anniCopertura anni di coperrtura nel caso di rendita temporanea
+#' @param rateGarantiteDurata numero di rate garantite
+#' @param rendimentoFondoAnnuo tasso di rendimento del fondo 
+#' @param tassoAleatorio tasso fisso o aleatorio
+#' @param tavolaMortalita tavola di mortalità con cui calcolare il premio
+#' @param tassoTecnico tasso usato per calcolare il premio
+#' @param tavolaPeriodo tavola utilizzata per simulare i decessi all'interno del portafoglio
+#'
+#' @return
+#' La funzione ritorna l'andamento e il rendimento del fondo, i decessi e il premio che ciascun assicurato dovrà pagare
+#' 
+#' @export
+#'
+#' @examples
+#' 
+
+gestionePortafoglio = function(#input
+  numeroAssicurati = 1000,
+  eta = 20,
+  rata = 1000,
+  fondoInizio = 0,
+  numeroPremi = 15,
+  omega = 110,
+  differimento = 25,
+  temporanea = FALSE,
+  posticipata = TRUE,
+  # temporanea o  vita intera
+  anniCopertura = 35,
+  rateGarantiteDurata = 5,
+  rendimentoFondoAnnuo = 0.02,
+  # tasso finanziario
+  tassoAleatorio = TRUE,
+  mortalitaAleatoria = TRUE,
+  tavolaMortalita = lifecontingencies::demoIta$SIM02,
+  #tavola utilizzata per la base tecnica
+  tassoTecnico = 0.02,
+  #tasso utilizzato per la base tecnica
+  tavolaPeriodo = lifecontingencies::demoIta$SIM02) {
+  # tavola utilizzata per calcolare i morti nel portafoglio
+  # vengono inizializzati gli output
+  andamentoFondo = NULL
+  rendimentoFondo = NULL
+  decessi = NULL
+  
+  omega <- length(tavolaMortalita) - 1 # rimuovo l'anno 0
+  
+  post <- ifelse(posticipata, 1, 0)
+  
+  # Fissiamo gli anni di copertura nel caso di una vitalizia
+  if (!temporanea)
+  {
+    anniCopertura = omega - eta
+  }
+  # vettore anni
+  anni = (eta+post):(anniCopertura + eta + post)
+  
+  calcoloVettoreTasso = function()
+  {
+    # DA FARE: random walk
+    #il tasso si distribuisce come una normale
+    if(tassoAleatorio)
+      rnorm(anniCopertura + post, mean = rendimentoFondoAnnuo, sd = 0.01)
+    #random walk
+    
+    else rep(rendimentoFondoAnnuo, anniCopertura + post)
+    # accettiamo la possibilità di deflazione nel caso del aleatorio
+  }
+  
+  tassoFinanziario = calcoloVettoreTasso()
+  
+  # calcola quante persone muoiono nel fondo
+  calcoloDecessi = function()
+  {
+    died = NULL
+    for (i in (eta):(anniCopertura + eta + post))
+    {
+      sopravissuti = numeroAssicurati - sum(died)
+      #mu = probabilità di decesso nell'anno i condizionatamente che siano in vita all'anno i
+      mu =  (tavolaPeriodo[i + 1] - ifelse(i > (omega - 1), 0, tavolaPeriodo[i +
+                                                                               2])) / ifelse(i > omega, 1, tavolaPeriodo[eta + 1])
+      #genera i morti da una Poisson con media quelli che in linea teorica dovrebbero morire
+      mortiCasuali = if_else(
+        mortalitaAleatoria,
+        sum(rpois(numeroAssicurati, mu), na.rm = T),
+        round(numeroAssicurati * mu)
+      )# se volessimo fare un modello deterministico
+      #arrotonda agli interi il numero di morti e nel caso sia > dei sopravissuti, li uccide tutti
+      died = c(
+        died, 
+        ifelse(mortiCasuali > sopravissuti, sopravissuti, mortiCasuali)
+      )
+    }
+    # se stiamo valutando fino a omega ci potrebbe essere un grande gruppo di persone che non muoiono prima a causa del processo di Poisson.
+    # In questo caso le alloco in modo casuale nel vettore dei morti con pesi le frequenze di decessi
+    if (anniCopertura + eta + post == omega)
+    {
+      last_died = sample(
+        x = 1:(anniCopertura - 1),
+        size = died[anniCopertura + 1],
+        prob = (died[1:(anniCopertura-1)] / sum(died[1:(anniCopertura-1)])),
+        replace = T
+      ) |> 
+        table() |> 
+        as.data.frame()
+      died[last_died$Var1] = died[last_died$Var1] + last_died$Freq
+      died[anniCopertura + 1] = 0
+    }
+    return(died)
+  }
+  
+  # calcola gli hPx tramite l_(x+h) / l_x
+  hPx = function(h, x)
+  {
+    # il +1 è per compensare che in R i vettori partono da 1 mentre l'età parte da zero
+    # ifelse serve a evitare il problema dell'età limite di andare fuori dal vettore
+    return(ifelse(h + x > omega, 0, tavolaMortalita[h + x + 1]) / tavolaMortalita[x + 1])
+  }
+  
+  # assicurati vivi
+  hAV = function(h)
+    # indica al tempo t il numero di assicurati sopravissuti
+  {
+    return(numeroAssicurati - ifelse(h > 0, sum(decessi[1:h]), 0))
+  }
+  
+  
+  # PREMIO
+  premio = function()
+  {
+    if (rateGarantiteDurata > 0)
+    {
+      p = rata * (
+        sum((1 + tassoTecnico) ** -c((differimento + post):(differimento + post + rateGarantiteDurata))) +
+          sum((1 + tassoTecnico) ** -c((differimento + post + rateGarantiteDurata):(anniCopertura + post)) *
+                hPx(c((differimento + post + rateGarantiteDurata):(anniCopertura + post)
+                ), eta)))
+    } else
+    {
+      p = rata * sum((1 + tassoTecnico) ** -(c((differimento + post):(anniCopertura + post))) * 
+                       hPx(c((differimento + post):(anniCopertura + post)), eta))
+    }
+    
+    if (numeroPremi == 1)
+    {
+      return(p)
+    } else
+    {
+      return(p / sum((1 + tassoTecnico) ** -c(0:(numeroPremi - 1)) * 
+                       hPx(c(0:(numeroPremi - 1)), eta))) # parte da zero perché la prima la pagano tutti
+    }
+    
+    return(-1) # nel caso l'utente inserisca rate garantite negative. Sì potrebbe mettere un try and catch
+  }
+  
+  
+  # p * sum(1.02 ** c(1:(differimento + post))) 
+  
+  # INIZIO ANDAMENTO E RENDIMENTO
+  
+  # calcolo dei vari decessi
+  decessi = calcoloDecessi()
+  
+  # hist(map_dbl(1:1E3, ~last(calcoloDecessi())))
+  
+  #Utilizzo della forumula ricorsiva
+  # incasso dei premi e differimento
+  if (differimento > 0) {
+    for (t in 1:(differimento))
+    {
+      andamentoFondo = c(andamentoFondo,
+                         (
+                           ifelse(t > numeroPremi, 0, hAV(t - 1) * premio()) +
+                             ifelse(t > 1, andamentoFondo[t - 1], fondoInizio)
+                         ) * (1 + tassoFinanziario[t]))
+    }
+  }
+  
+  # calcolo del fondo dall'inizio del pagamento delle rate
+  for (t in (differimento + post):(anniCopertura + post))
+  {
+    # le rate vanno pagate alla fine dell'anno, quindi devono essere capitalizzate anch'esse
+    andamentoFondo = c(andamentoFondo, 
+                       (
+                         ifelse(
+                           t > 1,
+                           andamentoFondo[t - 1],
+                           fondoInizio + premio() * numeroAssicurati
+                         ) -
+                           rata * ifelse((t - differimento) > rateGarantiteDurata,
+                                         hAV(t + post),
+                                         numeroAssicurati)
+                       ) * (1 + tassoFinanziario[t])
+    )
+  }
+  
+  
+  
+  rendimentoFondo = andamentoFondo - c(fondoInizio,andamentoFondo[1:(length(andamentoFondo) - 1)])
+  
+  
+  
+  #Creazione dell'oggetto che la funzione dovrà tornare
+  # print(c(length(anni),length(andamentoFondo),length(c(replicate(numeroPremi,premio()),
+  #                            rep(0,anniCopertura-numeroPremi)))))
+  Output = tibble(anni,
+                  andamentoFondo,
+                  rendimentoFondo,
+                  decessi = decessi[2:length(decessi)],
+                  premio = c(replicate(numeroPremi, premio()),
+                             rep(0, differimento-numeroPremi),
+                             rep(rata, anniCopertura - differimento + post)),
+                  tasso = tassoFinanziario)
+  
+  return(Output)
+  
+}
+
+
+stampaGrafici = function(dataFunzione)
+{
+  gg1 = ggplot(dataFunzione, aes(anni, andamentoFondo)) + 
+    geom_line(color = "paleturquoise",
+              fill = "paleturquoise",
+              alpha = 1) + 
+    geom_point(color = "orchid") +
+    scale_y_continuous(labels = scales::unit_format(unit = "€")) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_minimal() +
+    annotate(geom = "text",x = max(dataFunzione$anni)*0.9,y = max(dataFunzione$andamentoFondo)*.8,
+             label = paste("Premio: €",
+                           formatC(dataFunzione$premio[1],
+                                   big.mark=',',
+                                   digits = 2,
+                                   format = 'f'))) +
+    labs(title = "Andamento del fondo") + 
+    ylab(label = "Andamento del fondo") + 
+    xlab("Età della coorte di assicurati")
+  
+  gg2 = ggplot(dataFunzione, aes(anni, rendimentoFondo)) + 
+    geom_line(color = "paleturquoise",
+              fill = "paleturquoise",
+              alpha = 1) + 
+    geom_point(color = "orchid") +
+    scale_y_continuous(labels = scales::unit_format(unit = "€")) +
+    geom_hline(yintercept = 0, color = "red") + 
+    theme_minimal() +
+    labs(title = "Rendimento del fondo") + 
+    ylab(label = "Rendimento del fondo") + 
+    xlab("Età della coorte di assicurati")
+  
+  gg3 = ggplot(dataFunzione, aes(anni, decessi)) + 
+    geom_area(color = "orchid",
+              fill = "orchid",
+              alpha = 0.5) + 
+    theme_minimal() +
+    labs(title = "Decessi") + 
+    ylab(label = "Decessi") + 
+    xlab("Età della coorte di assicurati")
+  
+  gg4 = ggplot(dataFunzione, aes(anni, tasso)) + 
+    geom_line(color = "paleturquoise") + 
+    theme_minimal() +
+    labs(title = "Tasso") + 
+    ylab(label = "Tasso") + 
+    xlab("Età della coorte di assicurati")
+  
+  gg = list(gg1,gg2,gg3,gg4)
+  
+  return(gg)
+}
+
+#' MonteCarlo
+#'
+#' @param x 
+#' @param level 
+#' @param numeroMomenti 
+#'
+#' @return 
+#' @export
+#'
+#' @examples
+MonteCarlo <- function(x,
+                       level = 0.95,
+                       numeroMomenti = 10)
+{
+  monteCarlo = new.env()
+  nSimulazioni = length(x)
+  monteCarlo$valAtteso = mean(x)
+  monteCarlo$varianzaCampionaria = sd(x) / sqrt(nSimulazioni - 1)
+  #lower tail = false indica che la prob diverta 1-alpha al posto di alpha
+  z = qnorm((1 - level)/2, lower.tail = FALSE)
+  intConfLow = monteCarlo$valAtteso - z * monteCarlo$varianzaCampionaria
+  intConfUp = monteCarlo$valAtteso + z * monteCarlo$varianzaCampionaria
+  monteCarlo$intervalloConfidenza = c(intConfLow, intConfUp)
+  for (i in 1:numeroMomenti)
+  {
+    monteCarlo$momenti[i] = mean(x ** i)
+  }
+  
+  #probabilità di rovina
+  rovine=0
+  for (i in 1:length(x))
+  {
+    rovine = rovine+ifelse(x[i] < 0, 1, 0)
+  }
+  monteCarlo$rovina = rovine / length(x)
+  
+  monteCarloTibble = tibble(ValoreAtteso = monteCarlo$valAtteso,
+                            VarianzaCampionaria = monteCarlo$varianzaCampionaria,
+                            intervalloConfidenzaInferiore = intConfLow,
+                            intervalloConfidenzaSuperiore = intConfUp,
+                            ProbabilitàDiRovina = monteCarlo$rovine)
+  
+  monteCarlo$Tabella = monteCarloTibble
+  
+  return(monteCarlo)
+}
+
+#' Capitale Minimo
+#'
+#' @param numeroAssicurati 
+#' @param eta 
+#' @param rata 
+#' @param numeroPremi 
+#' @param omega 
+#' @param differimento 
+#' @param temporanea 
+#' @param anniCopertura 
+#' @param rateGarantiteDurata 
+#' @param rendimentoFondoAnnuo 
+#' @param tassoAleatorio 
+#' @param tavolaMortalita 
+#' @param tassoTecnico 
+#' @param tavolaPeriodo 
+#' @param andamentoFondo 
+#' @param rendimentoFondo 
+#' @param decessi 
+#' @param precisione 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+capitaleMinimo = function (numeroAssicurati = 1000,
+                           eta = 20,
+                           rata = 1000,
+                           numeroPremi = 15,
+                           omega = 110,
+                           differimento = 25,
+                           temporanea = FALSE,
+                           # temporanea o  vita intera
+                           anniCopertura = 35,
+                           rateGarantiteDurata = 5,
+                           rendimentoFondoAnnuo = 0.01,
+                           # tasso finanziario
+                           tassoAleatorio = TRUE,
+                           tavolaMortalita = demoIta$RG48M,
+                           #tavola utilizzata per la base tecnica
+                           tassoTecnico = 0.02,
+                           #tasso utilizzato per la base tecnica
+                           tavolaPeriodo = demoIta$SIM02,
+                           precisione = 1000, anno = 90)
+{
+  capitaleMinimo = 0
+  x = 0
+  for (i in 1:precisione)
+  {
+    x[i] =
+      gestionePortafoglio(
+        numeroAssicurati = numeroAssicurati,
+        eta = eta,
+        rata = rata,
+        numeroPremi = numeroPremi,
+        omega = omega,
+        differimento = differimento,
+        temporanea = temporanea,
+        anniCopertura = anniCopertura,
+        rateGarantiteDurata = rateGarantiteDurata,
+        rendimentoFondoAnnuo = rendimentoFondoAnnuo,
+        tassoAleatorio = tassoAleatorio,
+        tavolaMortalita = tavolaMortalita,
+        tassoTecnico = tassoTecnico,
+        tavolaPeriodo = tavolaPeriodo,
+        fondoInizio = capitaleMinimo
+      )$andamentoFondo[anno]
+  }
+  while (MonteCarlo(x)$rovina > 0.05)
+  {
+    capitaleMinimo = capitaleMinimo + abs(quantile(x, probs = 0.05)) / ifelse(MonteCarlo(x)$rovina > 0.9,
+                                                                              8,
+                                                                              ifelse(
+                                                                                MonteCarlo(x)$rovina > 0.1,
+                                                                                20,
+                                                                                ifelse(MonteCarlo(x)$rovina > 0.08, 30, 40)
+                                                                              ))
+    # print(capitaleMinimo)
+    probabilitaRovina = MonteCarlo(x)$rovina
+    # print(probabilitaRovina)
+    for (i in 1:precisione)
+    {
+      x[i] = gestionePortafoglio(
+        numeroAssicurati = numeroAssicurati,
+        eta = eta,
+        rata = rata,
+        numeroPremi = numeroPremi,
+        omega = omega,
+        differimento = differimento,
+        temporanea = temporanea,
+        anniCopertura = anniCopertura,
+        rateGarantiteDurata = rateGarantiteDurata,
+        rendimentoFondoAnnuo = rendimentoFondoAnnuo,
+        tassoAleatorio = tassoAleatorio,
+        tavolaMortalita = tavolaMortalita,
+        tassoTecnico = tassoTecnico,
+        tavolaPeriodo = tavolaPeriodo,
+        fondoInizio = capitaleMinimo
+      )$andamentoFondo[anno]
+    }
+  }
+  return(capitaleMinimo)
+}
+
+table_portafoglio <- function(portafoglio)
+{
+  table <- portafoglio |> 
+    janitor::clean_names() |> 
+    mutate(
+      across(
+        c(andamento_fondo, rendimento_fondo, premio),
+        \(x) scales::dollar(x, accuracy = 1, prefix = "€")
+      ),
+      across(
+        tasso,
+        \(x) scales::percent(x, accuracy = .01)
+      )
+    ) |> 
+    rename_all(\(x) str_replace(x, "_", " ") |> str_to_title())
+  return(table)
+}
+# table_portafoglio(gestionePortafoglio()) 

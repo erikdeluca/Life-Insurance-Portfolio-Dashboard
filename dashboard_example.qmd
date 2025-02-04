@@ -1,0 +1,316 @@
+---
+title: "Portafoglio di assicurati"
+# format: dashboard Taken from _quarto.yml
+format:
+    dashboard:
+       theme: 
+         - cosmo
+         - styles.scss
+       light: minty
+       dark: solar
+       toc: true
+       page-layout: fill
+       code-fold: true
+       df-print: paged
+       warnings: false
+server: shiny
+---
+
+# First page {.tabset}
+
+:::{.card title="just a markdown"}
+This Quarto document is made interactive using Shiny. Interactive documents allow readers to modify parameters and see the results immediately. Learn more about Shiny interactive documents at <https://quarto.org/docs/interactive/shiny/>.
+
+
+You can embed Shiny inputs and outputs in your document. Outputs are automatically updated whenever inputs change. This demonstrates how a standard R plot can be made interactive:
+:::
+
+<!-- ## Input maps {width=20%} -->
+
+<!-- ```{r} -->
+
+<!-- ``` -->
+
+
+## Vulcanos {height=40%}
+
+### Column {width=40% .sidebar}
+
+```{r}
+# <!-- #| content: card-sidebar -->
+#| 
+sliderInput("bins", "Number of bins:", 
+            min = 1, max = 50, value = 30)
+```
+
+### Column
+
+```{r}
+#| title: Vulcanos
+plotOutput("distPlot")
+```
+
+```{r}
+#| context: server
+output$distPlot <- renderPlot({
+   x <- faithful[, 2]  # Old Faithful Geyser data
+   bins <- seq(min(x), max(x), length.out = input$bins + 1)
+   hist(x, breaks = bins, col = 'darkgray', border = 'white',
+        xlab = 'Waiting time to next eruption (in mins)',
+        main = 'Histogram of waiting times')
+})
+
+```
+
+
+## Row {height=30%}
+
+### Sepal {.tabset}
+
+```{r}
+#| title: Length
+
+hist(iris$Sepal.Length)
+```
+
+
+
+```{r}
+#| title: Width
+
+hist(iris$Sepal.Width)
+```
+
+### Petal 
+
+```{r}
+#| title: Width
+
+hist(iris$Petal.Width)
+```
+
+# Second page
+
+## Row {height="65%"}
+
+```{r}
+#| fig-width: 10
+#| fig-height: 8
+plot(cars)
+```
+
+## Row {height="35%"}
+        
+```{r}
+#| fig-width: 5
+#| fig-height: 4
+plot(pressure)
+```
+    
+```{r}
+#| fig-width: 5
+#| fig-height: 4
+plot(airmiles)
+```
+
+# Tables
+
+## Kable and Janitor {width = 20%}
+
+```{r}
+library(janitor)
+library(tidyverse)
+mtcars %>%
+  tabyl(gear, cyl) %>%
+  adorn_totals("col") %>%
+  adorn_percentages("row") %>%
+  adorn_pct_formatting(digits = 2) %>%
+  adorn_ns() %>%
+  adorn_title() |> 
+   knitr::kable()
+```
+
+## DT
+
+```{r}
+library(DT)
+datatable(mtcars)
+```
+
+# Box
+
+## Box 
+
+```{r}
+#| content: valuebox
+#| title: "Articles per day"
+#| icon: pencil
+#| color: primary
+list(
+  value = 12
+)
+```
+
+```{r}
+#| content: valuebox
+#| title: "Comments per day"
+list(
+  icon = "chat",
+  color = "primary",
+  value = 130
+)
+```
+
+```{r}
+#| content: valuebox
+#| title: "Spam per day"
+list(
+  icon = "trash",
+  color = "danger",
+  value = 140
+)
+```
+
+## Row
+
+```{r}
+library(bslib)
+library(bsicons)
+value_box(
+  title = "This is a title",
+  value = textOutput("valuetext"),
+  showcase = bs_icon("music-note-beamed")
+)
+```
+
+## Row
+
+::: {.valuebox icon="pencil" color="tomato"}
+
+Articles per day
+
+`{python} articles`
+:::
+
+
+# Maps
+
+## Input
+
+
+```{r}
+#| title: maps
+#| content: card-toolbar
+library(leaflet)
+
+sliderInput("zoom", "Number of bins:", 
+            min = 1, max = 15, value = 3, step = .1)
+numericInput("lat", "Latitude:", value = 30, min = 30, max = 180, step = 1, width = 70)
+numericInput("long", "Latitude:", value = 31, min = 1, max = 360, step = 1, width = 70)
+```
+
+
+```{r}
+library(leaflet)
+leafletOutput("mymap")
+```
+
+
+```{r}
+#| context: server
+library(leaflet)
+
+# cat("title=", "World Map at", input$lat, input$long)
+
+output$mymap <- renderLeaflet({
+   # zoom <- 1 + log(input$zoom)
+   leaflet() |> 
+      addTiles() |>
+      setView(input$long, input$lat, zoom = input$zoom)
+})
+```
+
+
+
+```{r}
+#| context: setup
+library(ggplot2)
+dataset <- diamonds
+```
+
+# Plot
+
+## Input {.sidebar}
+
+```{r}
+#| title: input
+sliderInput('sampleSize', 'Sample Size', 
+            min=1, max=nrow(dataset),
+            value=min(1000, nrow(dataset)), 
+            step=500, round=0)
+br()
+checkboxInput('jitter', 'Jitter')
+checkboxInput('smooth', 'Smooth')
+```
+
+```{r}
+selectInput('x', 'X', names(dataset)) 
+selectInput('y', 'Y', names(dataset), names(dataset)[[2]])
+selectInput('color', 'Color', c('None', names(dataset)))
+```
+
+```{r}
+selectInput('facet_row', 'Facet Row',
+  c(None='.', names(diamonds[sapply(diamonds, is.factor)])))
+selectInput('facet_col', 'Facet Column',
+  c(None='.', names(diamonds[sapply(diamonds, is.factor)])))
+checkboxInput('scales_free', 'Scales free')
+```
+
+## Column
+
+```{r}
+plotOutput('plot')
+```
+
+## Data
+
+```{r}
+DT::dataTableOutput('data')
+```
+
+
+```{r}
+#| context: server
+
+dataset <- reactive({
+  diamonds[sample(nrow(diamonds), input$sampleSize),]
+})
+ 
+output$plot <- renderPlot({
+  
+  p <- ggplot(
+    dataset(), 
+    aes_string(x=input$x, y=input$y)) + geom_point()
+  
+  if (input$color != 'None')
+    p <- p + aes_string(color=input$color)
+  
+  facets <- paste(input$facet_row, '~', input$facet_col)
+  scale_facets <- dplyr::if_else(input$scales_free, "free", "fixed")
+  if (facets != '. ~ .')
+    p <- p + facet_grid(facets, scales = scale_facets)
+  
+  if (input$jitter)
+    p <- p + geom_jitter()
+  if (input$smooth)
+    p <- p + geom_smooth()
+  
+  p
+  
+})
+
+output$data <- DT::renderDataTable({
+  dataset()
+})
+```
