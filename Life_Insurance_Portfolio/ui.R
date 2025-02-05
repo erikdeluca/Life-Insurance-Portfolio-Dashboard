@@ -30,7 +30,7 @@ ui <- navbarPage(
         sliderInput("age", "Age", value = 20, min = 0, max = 100),
         
         # Input: Duration of coverage
-        uiOutput("duration_coverage"),
+        uiOutput("duration_annuities"),
         
         # Input: Number of premiums
         uiOutput("number_premiums"),
@@ -56,7 +56,7 @@ ui <- navbarPage(
         ),
         
         # aleatory rate
-        prettySwitch("aleatory_rate", "Aleatory rate",status = "primary", value = TRUE, inline = T),
+        prettySwitch("aleatory_rate", "Aleatory rate",status = "primary", value = TRUE),
         
         
         # Mortality
@@ -77,7 +77,7 @@ ui <- navbarPage(
         ),
         
         # aleatory mortality 
-        prettySwitch("aleatory_mortality", "Aleatory mortality",status = "primary", value = TRUE, inline = T),
+        prettySwitch("aleatory_mortality", "Aleatory mortality",status = "primary", value = TRUE),
         
       ), # END fluidRow
       
@@ -120,8 +120,11 @@ ui <- navbarPage(
         # first tab: 
         tabPanel("Fund Performance",
                  h3("Plot"),
-                 plotOutput("fund_performance_plot"),
+                 plotOutput("fund_performance_plot") |> 
+                   withSpinner(),
                  h3("Data"),
+                 dataTableOutput("fund_performance_table") |> 
+                   withSpinner()
                  # dataTableOutput("cumulate_fund_performance_table")
         ), # END first tabPanel
         
@@ -153,6 +156,7 @@ ui <- navbarPage(
                  #            
                  #            ),
                  h3("Data"),
+                 
                  # dataTableOutput("cumulate_fund_performance_table")
         ) # END fourth tabPanel
       ) # END tabsetPanel

@@ -87,10 +87,10 @@ premium <- function(
   # calculate the premium
   if (guaranteed_rates_duration > 0)
   {
-    guaranteed_rates <- sum((1 + technical_rate) ** -c((is_deferred + deffered):(is_deferred + guaranteed_rates_duration + deffered)))
+    guaranteed_rates <- sum((1 + technical_rate) ** -c((is_deferred + deffered):(is_deferred + guaranteed_rates_duration + deffered - 1)))
     # shold I insert is_deffered with coverage_years?
-    no_guaranteed_rates <- sum((1 + technical_rate) ** -c((deffered + is_deferred + guaranteed_rates_duration + 1):coverage_years) *
-                                 hPx(c((deffered + is_deferred + 1 + guaranteed_rates_duration):coverage_years), age, omega, mortality_table))
+    no_guaranteed_rates <- sum((1 + technical_rate) ** -c((deffered + is_deferred + guaranteed_rates_duration):coverage_years) *
+                                 hPx(c((deffered + is_deferred + guaranteed_rates_duration):coverage_years), age, omega, mortality_table))
     premium <- annuity * (guaranteed_rates + no_guaranteed_rates)
   } else
   {
@@ -100,8 +100,21 @@ premium <- function(
   
   if (number_premiums > 1)
   {
-    premium <- premium / 
-      sum((1 + technical_rate) ** -c(0:(number_premiums - 1)) * hPx(c(0:(number_premiums - 1)), age, omega, mortality_table))
+    if(guaranteed_rates_duration > 0)
+    {
+      # premiums_no_guaranteed_rates
+      premium <- rep(annuity * no_guaranteed_rates / 
+        sum((1 + technical_rate) ** -c(0:(number_premiums - 1)) * hPx(c(0:(number_premiums - 1)), age, omega, mortality_table)),
+        number_premiums)
+      
+      # first premium with guaranteed rates
+      premium[1] <- premium[1] + annuity * guaranteed_rates
+    }else
+    {
+      premium <- rep(premium / 
+        sum((1 + technical_rate) ** -c(0:(number_premiums - 1)) * hPx(c(0:(number_premiums - 1)), age, omega, mortality_table)),
+        number_premiums)
+    }
   }
     return(premium)
 }
@@ -187,27 +200,26 @@ fund <- function(
   # initialize the fund vector
   # fund_details <-
   tibble(
-    age = (age + is_deferred):(coverage_years + age + is_deferred - 1),
+    n = 1:coverage_years,
+    age = age:(coverage_years + age - 1),
     fund = c(initial_fund, rep(0, length(age) - 1)),
     fund_return = rep(0, length(age)),
-    deaths = deaths[1:length(age)],
-    survived = number_insured - cumsum(deaths),
+    deaths = c(0, deaths[1:(length(age) - 1)]),
+    survived_i = number_insured - cumsum(deaths) + deaths,
+    survived_f = number_insured - cumsum(deaths),
+    premium_value = c(premium_value, rep(0, length(age) - number_premiums)),
     fund_premium = rep(0, length(age)),
     fund_annuity = rep(0, length(age)),
     financial_rate = financial_rates,
   ) |> 
     # manipulate the fund vectors
     mutate(
-      fund_premium = c(premium_value * sapply(0:(number_premiums - 1), \(h) hAV(h, number_insured, deaths)),
-                       rep(0, coverage_years - number_premiums)),
-      fund_annuity = c(
-        rep(0, deffered + is_deferred - 1),
-        rep(annuity * number_insured, guaranteed_rates_duration),
-        rep(
-          annuity * 
-            sapply((guaranteed_rates_duration + deffered + is_deferred):(coverage_years), \(h) hPx(h, !!age, omega, mortality_table) * number_insured)
-          )
-        ),
+      fund_premium = premium_value * survived_i,
+      fund_annuity = case_when(
+        n < deffered + is_deferred ~ 0,
+        n < guaranteed_rates_duration + deffered + is_deferred ~ annuity * number_insured,
+        n < coverage_years + is_deferred ~ ifelse(is_deferred == 1, survived_f, survived_i) * annuity,
+      )
       # # calculate the fund annuities
       # fund_premium_cumulated = cumsum(fund_premium * (1 + financial_rate)),
       # fund = fund * cumprod(1 + financial_rate) + fund_premium * (1 + financial_rate) - fund_annuity,
@@ -215,18 +227,20 @@ fund <- function(
       #                       0,
       #                       (fund - lag(fund, default = initial_fund)) / lag(fund, default = initial_fund)
       # )
+    # ) |> print(n = 100)  # for DEBUGGING
     ) -> fund_details
   
   for(i in 1:nrow(fund_details))
   {
     fund_details$fund[i] = (ifelse(i > 1, fund_details$fund[i - 1], initial_fund) + 
-      fund_details$fund_premium[i]) * (1 + fund_details$financial_rate[i]) - fund_details$fund_annuity[i]
+      fund_details$fund_premium[i]) * (1 + fund_details$financial_rate[i]) - 
+      fund_details$fund_annuity[i] * (1 + fund_details$financial_rate[i])**(1 - is_deferred) # when is_deferred = 0, the fund_annuity isn't capitalized
   }
   
-    fund_details |> 
-      mutate(
-        fund_return = fund - lag(fund, default = initial_fund)
-      ) -> fund_details
+  fund_details |> 
+    mutate(
+      fund_return = fund - lag(fund, default = initial_fund)
+    ) -> fund_details
     
   return(fund_details)
 }
