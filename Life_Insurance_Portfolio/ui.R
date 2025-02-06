@@ -22,9 +22,9 @@ ui <- navbarPage(
         h4("Time Inputs"),
         
         # Input: advance or deferred payment
-        prettyRadioButtons("advance_deferred_payment", "Advance or deferred payment",
-                     choices = c("Advance", "Deferred"),
-                     selected = "Deferred", inline = TRUE
+        prettyRadioButtons("payment", "Advance (due) or arrears (immediate) payments",
+                     choices = c("advance", "arrears"),
+                     selected = "advance", inline = TRUE
                      ),
         # Input: Age
         sliderInput("age", "Age", value = 20, min = 0, max = 100),
@@ -42,7 +42,7 @@ ui <- navbarPage(
       
       # RATES AND MORTALITY INPUTS
       fluidRow(
-        h4("Rates and Mortality Inputs"),
+      h4("Rates and Mortality Inputs"),
         
         # Interest
         column(width = 6,
@@ -54,10 +54,6 @@ ui <- navbarPage(
           # technical rate input
           numericInput("technical_rate", "Technical rate", value = 0.02, min = 0, max = 1, step = 0.01),
         ),
-        
-        # aleatory rate
-        prettySwitch("aleatory_rate", "Aleatory rate",status = "primary", value = TRUE),
-        
         
         # Mortality
         column(width = 6,
@@ -75,9 +71,18 @@ ui <- navbarPage(
                       choices = names(demoIta),
                       selected = names(demoIta)[6]),
         ),
+      ), # END fluidRow
+      
+      fluidRow(
+        h6("Aleatory"),
+        
+        # aleatory rate
+        prettySwitch("aleatory_rate", "Aleatory rate",status = "primary", value = F),
+        
+        
         
         # aleatory mortality 
-        prettySwitch("aleatory_mortality", "Aleatory mortality",status = "primary", value = TRUE),
+        prettySwitch("aleatory_mortality", "Aleatory mortality",status = "primary", value = F),
         
       ), # END fluidRow
       
@@ -97,7 +102,7 @@ ui <- navbarPage(
         
         column(width = 6,
           # Input: Rate
-          numericInput("annuity", "Annuity", value = 12E3, min = 0),
+          numericInput("annuity", "Annuity", value = 1, min = 0),
         ),
         
         column(width = 6,

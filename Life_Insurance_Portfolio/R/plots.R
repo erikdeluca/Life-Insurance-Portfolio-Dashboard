@@ -12,11 +12,22 @@ fund(aleatory_mortality = F, aleatory_rate = F, age = 60, guaranteed_rates_durat
     fund_p_on_a = fund_premium / fund_annuity, # it doesn't take into account the number of insured along the years and the discount rate 
     )
   
-fund(aleatory_mortality = F, aleatory_rate = F, age = 60, guaranteed_rates_duration = 0) |> 
-  ggplot(aes(age, fund)) +
-  geom_line() +
-  geom_point() +
-  geom_hline(yintercept = 0, linetype = "dashed") +
+fund(aleatory_mortality = F, aleatory_rate = F, age = 60, guaranteed_rates_duration = 0) |>
+  add_row(
+    n = 0,
+    age = min(age) - 1,
+    fund = initial_fund,
+    fund_t = initial_fund,
+    .before = 1
+  ) |> 
+  ggplot(aes(age)) +
+  # geom_line(aes(y = fund)) +
+  geom_line(aes(y = fund_t), linetype = "dotted", color = "#AFFFAF") +
+  geom_point(aes(y = fund)) +
+  geom_hline(yintercept = 0,
+             linetype = "dashed",
+             color = "tomato"
+  ) +
   labs(title = "Fund value over time",
        x = "Age",
        y = "Fund value") +
@@ -25,13 +36,14 @@ fund(aleatory_mortality = F, aleatory_rate = F, age = 60, guaranteed_rates_durat
 fund(aleatory_mortality = F, aleatory_rate = F, age = 60, guaranteed_rates_duration = 0) |>
   # print(n = 100)
   mutate(
-    across(
-      c(fund, fund_return, fund_premium, premium_value, fund_annuity),
-      \(x) number(x, prefix = "€", scale_cut = cut_short_scale())
-    ),
+    # across(
+    #   c(fund, fund_return, fund_premium, premium_value, fund_annuity),
+    #   \(x) number(x, prefix = "€", scale_cut = cut_short_scale())
+    # ),
     across(
       financial_rate,
       \(x) scales::percent(x, accuracy = .01)
     ),
   )
+
 

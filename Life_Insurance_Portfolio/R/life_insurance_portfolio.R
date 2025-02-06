@@ -50,7 +50,7 @@ deaths_calculation <- function(
   return(insured_dieds)
 }
 
-# deaths_calculation()
+# sum(deaths_calculation())
 
 # hPx calculations --------------------------------------------
 hPx <- function(h, x, omega, mortality_table)
@@ -76,31 +76,31 @@ premium <- function(
   mortality_table = lifecontingencies::demoIta$SIM02,
   number_premiums = 15,
   deffered = 0,
-  advance_deferred_payment = "Deferred",
+  payment = "advance",
   coverage_years = 35,
   guaranteed_rates_duration = 5,
   technical_rate = 0.02
 )
 {
-  is_deferred <- ifelse(advance_deferred_payment == "Deferred", 1, 0)
+  is_advance <- ifelse(payment == "advance", 1, 0)
   
   # calculate the premium
   if (guaranteed_rates_duration > 0)
   {
-    guaranteed_rates <- sum((1 + technical_rate) ** -c((is_deferred + deffered):(is_deferred + guaranteed_rates_duration + deffered - 1)))
+    guaranteed_rates <- sum((1 + technical_rate) ** -c((1 - is_advance + deffered):(-is_advance + guaranteed_rates_duration + deffered)))
     # shold I insert is_deffered with coverage_years?
-    no_guaranteed_rates <- sum((1 + technical_rate) ** -c((deffered + is_deferred + guaranteed_rates_duration):coverage_years) *
-                                 hPx(c((deffered + is_deferred + guaranteed_rates_duration):coverage_years), age, omega, mortality_table))
+    no_guaranteed_rates <- sum((1 + technical_rate) ** -c((1 - is_advance + deffered + guaranteed_rates_duration):coverage_years) *
+                                 hPx(c((1 - is_advance + deffered + guaranteed_rates_duration):coverage_years), age, omega, mortality_table))
     premium <- annuity * (guaranteed_rates + no_guaranteed_rates)
   } else
   {
-    premium <- annuity * sum((1 + technical_rate) ** -(c((deffered + is_deferred):coverage_years)) * 
-                             hPx(c((deffered + is_deferred):coverage_years), age, omega, mortality_table))
+    premium <- annuity * sum((1 + technical_rate) ** -(c((deffered - is_advance + 1):(coverage_years - is_advance))) * 
+                             hPx(c((deffered - is_advance + 1):(coverage_years - is_advance)), age, omega, mortality_table))
   }
   
   if (number_premiums > 1)
   {
-    if(guaranteed_rates_duration > 0)
+    if (guaranteed_rates_duration > 0)
     {
       # premiums_no_guaranteed_rates
       premium <- rep(annuity * no_guaranteed_rates / 
@@ -153,7 +153,7 @@ fund <- function(
     number_premiums = 15,
     omega = 110,
     deffered = 25,
-    advance_deferred_payment = "Deferred",
+    payment = "advance",
     coverage_years = 35,
     guaranteed_rates_duration = 5,
     fund_return_rate = 0.02,
@@ -164,9 +164,9 @@ fund <- function(
     aleatory_mortality = TRUE
 ) {
   
-  # set the deferred value
-  is_deferred <- ifelse(advance_deferred_payment == "Deferred", 1, 0)
-  
+  # set the advance value
+  is_advance <- ifelse(payment == "advance", 1, 0)
+
   # calculate the death vector
   deaths <- deaths_calculation(
     number_insured = number_insured,
@@ -184,7 +184,7 @@ fund <- function(
     mortality_table = mortality_table,
     number_premiums = number_premiums,
     deffered = deffered,
-    advance_deferred_payment = advance_deferred_payment,
+    payment = payment,
     coverage_years = coverage_years,
     guaranteed_rates_duration = guaranteed_rates_duration,
     technical_rate = technical_rate
@@ -198,15 +198,20 @@ fund <- function(
   )
   
   # initialize the fund vector
+  last_survived <- number_insured - sum(deaths[1:coverage_years + is_advance])
+  last_survived_t <- number_insured * hPx(coverage_years + is_advance, age, omega, mortality_table)
   # fund_details <-
   tibble(
-    n = 1:coverage_years,
+    n = is_advance:(coverage_years + is_advance - 1),
     age = age:(coverage_years + age - 1),
     fund = c(initial_fund, rep(0, length(age) - 1)),
-    fund_return = rep(0, length(age)),
+    fund_t = c(initial_fund, rep(0, length(age) - 1)),
+    # fund_return = rep(0, length(age)),
     deaths = c(0, deaths[1:(length(age) - 1)]),
     survived_i = number_insured - cumsum(deaths) + deaths,
     survived_f = number_insured - cumsum(deaths),
+    # theoretical survived
+    survived_t = number_insured * hPx(n - is_advance, !!age, omega, mortality_table),
     premium_value = c(premium_value, rep(0, length(age) - number_premiums)),
     fund_premium = rep(0, length(age)),
     fund_annuity = rep(0, length(age)),
@@ -215,11 +220,21 @@ fund <- function(
     # manipulate the fund vectors
     mutate(
       fund_premium = premium_value * survived_i,
+      fund_premium_t = premium_value * survived_t,
       fund_annuity = case_when(
-        n < deffered + is_deferred ~ 0,
-        n < guaranteed_rates_duration + deffered + is_deferred ~ annuity * number_insured,
-        n < coverage_years + is_deferred ~ ifelse(is_deferred == 1, survived_f, survived_i) * annuity,
-      )
+        n < deffered + is_advance ~ 0,
+        n < guaranteed_rates_duration + deffered + is_advance ~ annuity * number_insured,
+        (n < coverage_years + is_advance + 1) & is_advance == 1 ~ survived_f * annuity,
+        (n < coverage_years + is_advance + 1) & is_advance == 0 ~ lead(survived_f, default = last_survived) * annuity,
+        TRUE ~ NA_real_  # Use NA for undefined cases
+      ),
+      fund_annuity_t = case_when(
+        n < deffered + is_advance ~ 0,
+        n < guaranteed_rates_duration + deffered + is_advance ~ annuity * number_insured,
+        (n < coverage_years + is_advance) & is_advance == 0 ~ lead(survived_t, default = last_survived_t) * annuity,
+        (n < coverage_years + is_advance) & is_advance == 1 ~ survived_t * annuity,
+        TRUE ~ NA_real_  # Use NA for undefined cases
+      ),
       # # calculate the fund annuities
       # fund_premium_cumulated = cumsum(fund_premium * (1 + financial_rate)),
       # fund = fund * cumprod(1 + financial_rate) + fund_premium * (1 + financial_rate) - fund_annuity,
@@ -232,31 +247,73 @@ fund <- function(
   
   for(i in 1:nrow(fund_details))
   {
+    
     fund_details$fund[i] = (ifelse(i > 1, fund_details$fund[i - 1], initial_fund) + 
       fund_details$fund_premium[i]) * (1 + fund_details$financial_rate[i]) - 
-      fund_details$fund_annuity[i] * (1 + fund_details$financial_rate[i])**(1 - is_deferred) # when is_deferred = 0, the fund_annuity isn't capitalized
+      fund_details$fund_annuity[i] * (1 + fund_details$financial_rate[i])**is_advance # when is_advance = 0, the fund_annuity isn't capitalized
+    
+    fund_details$fund_t[i] = (ifelse(i > 1, fund_details$fund_t[i - 1], initial_fund) +
+      fund_details$fund_premium_t[i]) * (1 + fund_details$financial_rate[i]) -
+      fund_details$fund_annuity_t[i] * (1 + fund_details$financial_rate[i])**is_advance # when is_advance = 0, the fund_annuity isn't capitalized
+
   }
   
   fund_details |> 
     mutate(
-      fund_return = fund - lag(fund, default = initial_fund)
+      # fund_return = fund - lag(fund, default = initial_fund),
+      fund_pos = (lag(fund, default = initial_fund) + fund_premium) * (1 + financial_rate),
+      fund_neg = fund_annuity * (1 + financial_rate) ** (1 - is_advance),
     ) -> fund_details
     
   return(fund_details)
 }
-# 
-fund(
-  # advance_deferred_payment = "Advance",
-  advance_deferred_payment = "Deffered",
-  # initial_fund = 1E10,
-  number_insured = 1E5,aleatory_mortality = F, aleatory_rate = F) |> 
-  print(n = 100)
-  
-fund(
-  # advance_deferred_payment = "Advance",
-  advance_deferred_payment = "Deffered",
-  # initial_fund = 1E10,
-  number_insured = 1E5,aleatory_mortality = F, aleatory_rate = F) |> 
-  arrange(-age) |> 
-  summarise(first(fund) / last(survived))
 
+
+number_insured = 1000
+annuity = 1
+age = 20
+omega = 120
+mortality_table = demoIta$SIM02
+number_premiums = 1
+deffered = 0
+# payment = "advance"
+payment = "arrears"
+coverage_years = 100
+guaranteed_rates_duration = 0
+technical_rate = .02
+fund_return_rate = .02
+aleatory_mortality = F
+
+f <- fund(
+  number_insured = number_insured,
+  age = age,
+  annuity = annuity,
+  initial_fund = 0,
+  number_premiums = number_premiums,
+  omega = omega,
+  deffered = deffered,
+  payment = payment,
+  coverage_years = coverage_years,
+  guaranteed_rates_duration = guaranteed_rates_duration,
+  fund_return_rate = fund_return_rate,
+  technical_rate = technical_rate,
+  aleatory_rate = F,
+  aleatory_mortality = F,
+  mortality_table = demoIta$SIM02,
+  simulation_table = demoIta$SIM02
+) 
+
+print(f, n = coverage_years)
+
+ggplot(f, aes(age)) +
+  # geom_line(aes(y = fund)) +
+  geom_line(aes(y = fund_t), linetype = "dotted", color = "#AFFFAF") +
+  geom_point(aes(y = fund)) +
+  geom_hline(yintercept = 0,
+             linetype = "dashed",
+             color = "tomato"
+  ) +
+  labs(title = "Fund value over time",
+       x = "Age",
+       y = "Fund value") +
+  theme_minimal()
