@@ -1,20 +1,26 @@
-ui <- navbarPage(
+ui <- fluidPage(
   
-  # navbarMenu("Menu",
-  #            tabPanel("Home", "Home"),
-  #            tabPanel("About", "About"),
-  #            tabPanel("Contact", "Contact"),
-  #             
+  # add css file ----
+  # tags$head(
+  #   tags$link(rel = "stylesheet", type = "text/css", href = "sass-styles.css"),
+  #   tags$title("Life Insurance Portfolio Analysis")
   # ),
-  # navbarMenu("Fixed Rates"),
-  # navbarMenu("Fixed Premiums"),
-  title = "Life Insurance Portfolio Analysis",
   
+  
+  useShinyjs(),
+  
+  title = "Life Insurance Portfolio Analysis",
+  titlePanel("Life Insurance Portfolio Analysis", windowTitle = "Life Insurance Portfolio Analysis"),
+  
+  # use CSS file
+  theme = "www/sass-styles.css",
+
   # Sidebar layout with input and output definitions
   sidebarLayout(
     
+    
     # sidebar panel for inputs ----
-    sidebarPanel(
+    div( id ="Sidebar",sidebarPanel(
       
       
       # TIME INPUTS
@@ -74,7 +80,7 @@ ui <- navbarPage(
       ), # END fluidRow
       
       fluidRow(
-        h6("Aleatory"),
+        h4("Aleatory"),
         
         # aleatory rate
         prettySwitch("aleatory_rate", "Aleatory rate",status = "primary", value = F),
@@ -114,23 +120,35 @@ ui <- navbarPage(
         
       ), # END fluidRow
       
-    ), # END sidebarPanel
+    )), # END sidebarPanel
     
     # Main panel for displaying outputs ----
     mainPanel(
       
+      actionButton("toggleSidebar", "Toggle sidebar"),
+      
       # tabsetPanel for output tabs ----
       tabsetPanel(
         
+        
         # first tab: 
         tabPanel("Fund Performance",
+                 
                  h3("Plot"),
                  plotOutput("fund_performance_plot") |> 
                    withSpinner(),
+                 
                  h3("Data"),
-                 dataTableOutput("fund_performance_table") |> 
-                   withSpinner()
-                 # dataTableOutput("cumulate_fund_performance_table")
+                 tabsetPanel(
+                   tabPanel("Real Fund",
+                            dataTableOutput("real_fund_table") |> 
+                              withSpinner()
+                   ),
+                   tabPanel("Theoretical Fund",
+                            dataTableOutput("theoretical_fund_table") |> 
+                              withSpinner()
+                   )
+                 )
         ), # END first tabPanel
         
         # second tab

@@ -1,5 +1,8 @@
 server <- function(input, output) {
   
+  observeEvent(input$toggleSidebar, {
+    shinyjs::toggle(id = "Sidebar")
+  })
   
   # input ui ----
   is_deffereal <- reactive({
@@ -21,34 +24,6 @@ server <- function(input, output) {
     guaranteed_rates_duration_value = 0,
     duration_annuities_values = c(0,0)
     )
-  
-  observeEvent(input$age, {
-    initial_input$duration_annuities_values[1] <- 
-      max(input$age + is_deffereal(), input$duration_annuities[1])
-    initial_input$duration_annuities_values[2] <- 
-      min(omega() + is_deffereal(), input$duration_annuities[2])
-    
-    initial_input$number_premiums_value <- 
-      min(input$number_premiums, input$duration_annuities[1] - input$age + is_deffereal())
-  })
-  
-  observeEvent(input$duration_annuities, {
-    initial_input$number_premiums_value <- 
-      min(input$number_premiums, input$duration_annuities[1] - input$age + is_deffereal())
-    
-    initial_input$guaranteed_rates_duration_value <- 
-      min(input$guaranteed_rates_duration, input$duration_annuities[2] - input$duration_annuities[1])
-  })
-  
-  observeEvent(input$payment, {
-    initial_input$duration_annuities_values[1] <- 
-      max(input$age + is_deffereal(), input$duration_annuities[1])
-    initial_input$duration_annuities_values[2] <- 
-      min(omega() + is_deffereal(), input$duration_annuities[2])
-    
-    initial_input$number_premiums_value <- 
-      min(input$number_premiums, input$duration_annuities[1] - input$age + is_deffereal())
-  })
   
   output$duration_annuities <- renderUI({
     sliderInput("duration_annuities",
@@ -81,28 +56,59 @@ server <- function(input, output) {
     )
   })
   
+  observeEvent(input$age, {
+    initial_input$duration_annuities_values[1] <- 
+      max(input$age + is_deffereal(), input$duration_annuities[1])
+    initial_input$duration_annuities_values[2] <- 
+      min(omega() + is_deffereal(), input$duration_annuities[2])
+    
+    initial_input$number_premiums_value <- 
+      min(input$number_premiums, input$duration_annuities[1] - input$age + is_deffereal())
+  })
+  
+  observeEvent(input$duration_annuities, {
+    initial_input$number_premiums_value <- 
+      min(input$number_premiums, input$duration_annuities[1] - input$age + is_deffereal())
+    
+    initial_input$guaranteed_rates_duration_value <-
+      ifelse(is.null(input$guaranteed_rates_duration),
+             0,
+             min(input$guaranteed_rates_duration, input$duration_annuities[2] - input$duration_annuities[1])
+              )
+  })
+  
+  observeEvent(input$payment, {
+    initial_input$duration_annuities_values[1] <- 
+      max(input$age + is_deffereal(), input$duration_annuities[1])
+    initial_input$duration_annuities_values[2] <- 
+      min(omega() + is_deffereal(), input$duration_annuities[2])
+    
+    initial_input$number_premiums_value <- 
+      min(input$number_premiums, input$duration_annuities[1] - input$age + is_deffereal())
+  })
+  
   # render data 
   data_fund <- reactive({
-    message(
-      paste0("data_fund \n",
-             "number_insured: ", input$number_insured, "\n",
-             "age: ", input$age, "\n",
-             "annuity: ", input$annuity, "\n",
-             "initial_fund: ", input$initial_fund, "\n",
-             "number_premiums: ", input$number_premiums, "\n",
-             "omega: ", omega(), "\n",
-             "deffered: ", input$duration_annuities[1] - input$age, "\n",
-             "payment: ", input$payment, "\n",
-             "coverage_years: ", input$duration_annuities[2] - input$age, "\n",
-             "guaranteed_rates_duration: ", input$guaranteed_rates_duration, "\n",
-             "fund_return_rate: ", input$interest_rate, "\n",
-             "technical_rate: ", input$technical_rate, "\n",
-             "aleatory_rate: ", input$aleatory_rate, "\n",
-             "mortality_table: ", input$technical_table, "\n",
-             "simulation_table: ", input$simulation_table, "\n",
-             "aleatory_mortality: ", input$aleatory_mortality, "\n"
-            )
-    )
+    # message(
+    #   paste0("data_fund \n",
+    #          "number_insured: ", input$number_insured, "\n",
+    #          "age: ", input$age, "\n",
+    #          "annuity: ", input$annuity, "\n",
+    #          "initial_fund: ", input$initial_fund, "\n",
+    #          "number_premiums: ", input$number_premiums, "\n",
+    #          "omega: ", omega(), "\n",
+    #          "deffered: ", input$duration_annuities[1] - input$age, "\n",
+    #          "payment: ", input$payment, "\n",
+    #          "coverage_years: ", input$duration_annuities[2] - input$age, "\n",
+    #          "guaranteed_rates_duration: ", input$guaranteed_rates_duration, "\n",
+    #          "fund_return_rate: ", input$interest_rate, "\n",
+    #          "technical_rate: ", input$technical_rate, "\n",
+    #          "aleatory_rate: ", input$aleatory_rate, "\n",
+    #          "mortality_table: ", input$technical_table, "\n",
+    #          "simulation_table: ", input$simulation_table, "\n",
+    #          "aleatory_mortality: ", input$aleatory_mortality, "\n"
+    #         )
+    # )
     fund(
       number_insured = input$number_insured,
       age = input$age,
@@ -140,24 +146,12 @@ server <- function(input, output) {
       theme_minimal()
   })
   
-  output$fund_performance_table <- renderDataTable({
-    data_fund() |> 
-      arrange(-n) |> 
-      mutate(
-        across(
-          financial_rate,
-          \(x) scales::percent(x, accuracy = .01)
-        ),
-        # across(
-        #   c(fund, fund_return, fund_premium, premium_value, fund_annuity),
-        #   \(x) number(x, prefix = "€", scale_cut = cut_short_scale())
-        # ),
-        across(
-          where(is.numeric),
-          round
-        ),
-      )
-    
+  output$real_fund_table <- renderDataTable({
+    table_real_fund(data_fund())
+    })
+  
+  output$theoretical_fund_table <- renderDataTable({
+    table_theoretical_fund(data_fund())
   })
   
 

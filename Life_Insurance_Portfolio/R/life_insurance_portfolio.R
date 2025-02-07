@@ -260,7 +260,7 @@ fund <- function(
   
   fund_details |> 
     mutate(
-      # fund_return = fund - lag(fund, default = initial_fund),
+      fund_return = fund - lag(fund, default = initial_fund),
       fund_pos = (lag(fund, default = initial_fund) + fund_premium) * (1 + financial_rate),
       fund_neg = fund_annuity * (1 + financial_rate) ** (1 - is_advance),
     ) -> fund_details

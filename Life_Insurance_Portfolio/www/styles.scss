@@ -1,0 +1,185 @@
+/*-- scss:defaults --*/
+
+// Fonts
+@import url('https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300..900;1,300..900&family=Parkinsans:wght@300..800&display=swap');
+// set the font variables
+$figtree: 'Figtree', sans-serif; 
+$parkinsans: 'Parkinsans', sans-serif; 
+
+// Colorsx  
+$federal-blue: #03045eff;
+$marian-blue: #023e8aff;
+$marian-blue-light: #225eaaff;
+$honolulu-blue: #0077b6ff;
+$blue-green: #0096c7ff;
+$pacific-cyan: #00b4d8ff;
+$vivid-sky-blue: #48cae4ff;
+$non-photo-blue: #90e0efff;
+$non-photo-blue-2: #ade8f4ff;
+$light-cyan: #f2fbfe;
+$white: #ffffffff;
+$rich-black: #00171fff;
+$prussian-blue: #003459ff;
+$cerulean: #007ea7ff;
+$picton-blue: #00a8e8ff;
+
+// Base document colors
+// navbar
+$navbar-bg: $marian-blue;
+$navbar-fg: $white; 
+$navbar-hl: $light-cyan;
+$title-block-bg: $marian-blue-light;
+// body
+$body-bg: $white;
+$body-color: $prussian-blue;
+$footer-bg: $marian-blue; 
+$link-color: $prussian-blue;
+// botton
+$btn-bg: $marian-blue-light;
+$btn-color: $white;
+$btn-border-color: $marian-blue-light;
+
+// Inline code
+$code-bg: $light-cyan;
+$code-color: $honolulu-blue;//$burnt-orange; 
+
+// Code blocks
+$code-block-bg: $light-cyan;
+
+/*-- scss:rules --*/
+
+/* ELEMENT SELECTORS */
+
+quarto-document-content {
+  font-family: $figtree;
+  font-size: 1.2em;
+  color: $body-color;
+  background-color: $body-bg;
+}
+
+quarto-document-content h1, quarto-document-content h2, quarto-document-content h3, quarto-document-content h4, quarto-document-content h5, quarto-document-content h6 {
+  font-family: $parkinsans;
+  color: $federal-blue;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: $parkinsans;
+  color: $federal-blue;
+}
+
+.card-title {
+  font-family: $parkinsans;
+  color: $federal-blue;
+}
+
+// footnote
+quarto-document-content .footnote {
+  font-size: 0.8em;
+  color: $white;
+  background-color: $footer-bg;
+}
+
+quarto-document-content a {
+  color: $link-color;
+}
+
+quarto-document-content a:hover {
+  color: $marian-blue;
+}
+
+quarto-document-content p code {
+  background-color: $code-bg;
+  color: $code-color;
+  padding: 0.2em;
+  border-radius: 0.2em;
+}
+
+quarto-document-content pre code {
+  background-color: $code-block-bg;
+  color: $code-color;
+  padding: 0.2em;
+  border-radius: 0.2em;
+}
+
+quarto-document-content blockquote {
+  border-left: 5px solid $marian-blue;
+  padding-left: 1em;
+  margin-left: 0;
+}
+
+quarto-document {
+  font-family: $figtree;
+  font-size: 1.2em;
+  color: $body-color;
+  background-color: $body-bg;
+}
+
+.menu-text span {
+  font-family: $parkinsans;
+  color: $body-color;
+}
+
+.quarto-header {
+  background-color: $navbar-bg;
+}
+
+.nav-footer {
+  background-color: $footer-bg;
+}
+
+/* Only background in the block and not in the whole header
+#title-block-header {
+  background-color: $title-block-bg;
+}
+*/
+
+.btn {
+  background-color: $btn-bg;
+  color: $btn-color;
+  border-color: $btn-border-color;
+}
+
+// btn-primary
+.btn-primary {
+  background-color: $marian-blue;
+  color: $white;
+  border-color: $marian-blue;
+}
+
+// btn show and hide sidebar
+.navbar-custom {
+  position: relative;
+}
+.toggle-sidebar {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+}
+
+// Coockies policy
+.termsfeed-com---palette-light .cc-nb-reject {
+    color: #fff;
+    background-color: $blue-green;
+}
+.termsfeed-com---palette-light .cc-nb-okagree {
+    color: #fff;
+    background-color: $honolulu-blue;
+}
+.termsfeed-com---palette-light .cc-nb-changep {
+    background-color: $blue-green;
+    color: #fff;
+}
+.termsfeed-com---palette-light.termsfeed-com---nb {
+    background-color: $light-cyan;
+    color: $honolulu-blue;
+}
+.termsfeed-com---palette-light.termsfeed-com---nb {
+    // background-color: #fafeffee;
+    background-color: $light-cyan;
+}
+.termsfeed-com---palette-light .cc-nb-text {
+    color: $honolulu-blue;
+}
+.termsfeed-com---palette-light .cc-nb-title {
+    color: $prussian-blue;
+}

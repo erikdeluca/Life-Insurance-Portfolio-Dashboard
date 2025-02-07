@@ -1,0 +1,95 @@
+
+# function standard to make a table with DT
+make_a_table <- function(pre_table){
+  pre_table |> 
+    datatable(
+      extensions = 'Buttons',
+      options = list(
+        dom = 'Blfrtip',
+        paging = TRUE,
+        scrollX=TRUE,
+        searching = TRUE,
+        ordering = TRUE,
+        # selection = "none",
+        buttons = list(
+          list(
+            extend = "copy",
+            text = "Copy",
+            className = "btn btn-primary"
+          ),
+          list(
+            extend = 'collection',
+            buttons = c('csv', 'excel', 'pdf'),
+            text = 'Download',
+            className = "btn btn-primary"
+          )
+        ),
+        # to get personal theme on buttons
+        initComplete = JS(
+          "function(settings, json) {",
+          # "$('.dt-buttons').addClass('btn-group');",
+          # "$('.dt-button').addClass('btn btn-primary');",
+          "$('.dt-button').removeClass('dt-button');",
+          "}"
+        ),
+        pageLength = 5,
+        lengthMenu = c(5, 10, 20, 50, "All")
+      )
+    )
+}
+
+# 
+table_real_fund <- function(f){
+  f |> 
+    select(
+      age,
+      fund,
+      fund_return,
+      fund_premium,
+      premium_value,
+      fund_annuity,
+      survived_i,
+      financial_rate,
+    ) |> 
+    mutate(
+      across(
+        c(fund, fund_return, fund_premium, premium_value, fund_annuity),
+        \(x) number(x, prefix = "€", scale_cut = cut_short_scale())
+      ),
+      across(
+        financial_rate,
+        \(x) scales::percent(x, accuracy = .01)
+      ),
+    ) |> 
+    make_a_table()
+}
+
+# table_real_fund(f)
+
+
+table_theoretical_fund <- function(f){
+  f |> 
+    select(
+      age,
+      fund,
+      fund_t,
+      fund_premium,
+      premium_value,
+      fund_annuity,
+      survived_i,
+      financial_rate,
+    ) |> 
+    mutate(
+      across(
+        c(fund, fund_t, fund_premium, premium_value, fund_annuity),
+        \(x) number(x, prefix = "€", scale_cut = cut_short_scale())
+      ),
+      across(
+        financial_rate,
+        \(x) scales::percent(x, accuracy = .01)
+      ),
+    ) |> 
+    make_a_table()
+}
+
+table_theoretical_fund(f)
