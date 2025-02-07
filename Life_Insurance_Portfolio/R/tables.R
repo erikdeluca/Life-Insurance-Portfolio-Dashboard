@@ -2,6 +2,10 @@
 # function standard to make a table with DT
 make_a_table <- function(pre_table){
   pre_table |> 
+    rename_with(
+      .fn = ~ .x |> str_replace_all("_", " ") |> str_to_title(),
+      .cols = everything()
+    ) |>
     datatable(
       extensions = 'Buttons',
       options = list(
@@ -61,6 +65,10 @@ table_real_fund <- function(f){
         \(x) scales::percent(x, accuracy = .01)
       ),
     ) |> 
+    rename(
+      "return" = "fund_return",
+      "survived" = "survived_i"
+    ) |> 
     make_a_table()
 }
 
@@ -73,23 +81,33 @@ table_theoretical_fund <- function(f){
       age,
       fund,
       fund_t,
-      fund_premium,
-      premium_value,
-      fund_annuity,
-      survived_i,
-      financial_rate,
+      fund_premium_t,
+      fund_annuity_t,
+      survived_t,
+      hPx
     ) |> 
     mutate(
       across(
-        c(fund, fund_t, fund_premium, premium_value, fund_annuity),
+        c(fund, fund_t, fund_premium_t, fund_annuity_t),
         \(x) number(x, prefix = "€", scale_cut = cut_short_scale())
       ),
       across(
-        financial_rate,
+        survived_t,
+        \(x) number(x, accuracy = 1)
+      ),
+      across(
+        hPx,
         \(x) scales::percent(x, accuracy = .01)
       ),
+    ) |> 
+    rename(
+      "fund_real" = "fund",
+      
+    ) |> 
+    rename_with(
+      \(x) str_remove(x, "_t"),
     ) |> 
     make_a_table()
 }
 
-table_theoretical_fund(f)
+# table_theoretical_fund(f)

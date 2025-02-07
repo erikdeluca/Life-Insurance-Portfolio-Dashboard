@@ -1,5 +1,5 @@
 ---
-title: "Portafoglio di assicurati"
+title: "Life Insurance Portfolio Dashboard"
 # format: dashboard Taken from _quarto.yml
 format:
     dashboard:
@@ -13,12 +13,19 @@ format:
        code-fold: true
        df-print: paged
        warnings: false
+       nav-buttons:
+            - icon: linkedin
+              href: https://www.linkedin.com/in/erikdeluca/
+              target: _blank
+            - icon: github
+              href: https://github.com/erikdeluca/Portafoglio-assicurazioni-vita
+              target: _blank
 server: shiny
 ---
 
 # Input {.sidebar width=30%}
 
-## Time Inputs
+#### Time Inputs
 
 ```{r}
 # Input: advance or deferred payment
@@ -39,35 +46,51 @@ uiOutput("number_premiums")
 uiOutput("guaranteed_rates_duration")
 ```
 
-## Rates and Mortality Inputs
+#### Rates and Mortality Inputs
 
-### Column {width="50%"}
+:::: {.columns}
 
+::: {.column width="50%"}
 ```{r}
 # interest rate input
-numericInput("interest_rate", "Interest rate", value = 0.02, min = 0, max = 1, step = 0.01)
+numericInput("interest_rate", "Interest rate", 
+             value = 0.02, 
+             min = 0, 
+             max = 1, 
+             step = 0.01,
+             width = 1000)
 
 # Input: technical table
 selectInput("technical_table",
             "Technical table",
             choices = names(demoIta),
-            selected = names(demoIta)[6])
+            selected = names(demoIta)[6],
+            width = 1000)
 ```
+:::
 
-### Column {width="50%"}
-
+::: {.column width="50%"}
 ```{r}
 # technical rate input
-numericInput("technical_rate", "Technical rate", value = 0.02, min = 0, max = 1, step = 0.01)
+numericInput("technical_rate", "Technical rate",
+             value = 0.02,
+             min = 0,
+             max = 1, 
+             step = 0.01,
+             width = 1000)
 
 # Input: simulation table
 selectInput("simulation_table",
             "Simulation table",
             choices = names(demoIta),
-            selected = names(demoIta)[6])
+            selected = names(demoIta)[6],
+            width = 1000)
 ```
+:::
 
-## Aleatory
+::::
+
+#### Aleatory
 
 ```{r}
 # aleatory rate
@@ -77,47 +100,72 @@ prettySwitch("aleatory_rate", "Aleatory rate",status = "primary", value = F)
 prettySwitch("aleatory_mortality", "Aleatory mortality",status = "primary", value = F)
 ```
 
-## Funds Inputs
+#### Funds Inputs
 
+:::: {.columns}
 
-### Column {width="50%"}
-
+::: {.column width="50%"}
 ```{r}
 # Input: Initial fund
-numericInput("initial_fund", "Initial fund", value = 0, min = 0)
+numericInput("initial_fund", "Initial fund", value = 0, min = 0, width = 1000)
 
 # Input: Rate
-numericInput("annuity", "Annuity", value = 1, min = 0)
+numericInput("annuity", "Annuity", value = 1, min = 0, width = 1000)
 ```
+:::
 
-
-### Column {width="50%"}
-
+::: {.column width="50%"}
 ```{r}
 # Input: Number of insured
-numericInput("number_insured", "Number of insured", value = 1000)
+numericInput("number_insured", "Number of insured", value = 1000, width = 1000)
 ```
+:::
+
+::::
 
 # Fund Performance
 
-## Plot
+::: {.panel-tabset expandible=false}
+
+## Fund Performance
 
 ```{r}
 plotOutput("fund_performance_plot") |> withSpinner()
 ```
 
-## Data {expandible="false"}
+## Fund Spin
 
-::: {.panel-tabset}
+```{r}
+plotOutput("fund_spin_plot") |> withSpinner(color = "#FFAAFF")
+```
+
+
+:::
+
+## Data 
+
 ## Real Fund 
 
 ```{r}
 dataTableOutput("real_fund_table") |> withSpinner()
 ```
 
+# Fund Theoretical
+
+## Plot
+
+```{r}
+plotOutput("theoretical_fund_plot") |> withSpinner()
+```
+
+## Data {expandible=false}
+
 ## Theoretical Fund 
 
 ```{r}
 dataTableOutput("theoretical_fund_table") |> withSpinner()
 ```
-:::
+
+
+# About
+

@@ -205,17 +205,18 @@ fund <- function(
     n = is_advance:(coverage_years + is_advance - 1),
     age = age:(coverage_years + age - 1),
     fund = c(initial_fund, rep(0, length(age) - 1)),
-    fund_t = c(initial_fund, rep(0, length(age) - 1)),
     # fund_return = rep(0, length(age)),
     deaths = c(0, deaths[1:(length(age) - 1)]),
     survived_i = number_insured - cumsum(deaths) + deaths,
     survived_f = number_insured - cumsum(deaths),
     # theoretical survived
-    survived_t = number_insured * hPx(n - is_advance, !!age, omega, mortality_table),
     premium_value = c(premium_value, rep(0, length(age) - number_premiums)),
     fund_premium = rep(0, length(age)),
     fund_annuity = rep(0, length(age)),
     financial_rate = financial_rates,
+    fund_t = c(initial_fund, rep(0, length(age) - 1)),
+    hPx = hPx(n - is_advance, !!age, omega, mortality_table),
+    survived_t = number_insured * hPx,
   ) |> 
     # manipulate the fund vectors
     mutate(
@@ -235,6 +236,14 @@ fund <- function(
         (n < coverage_years + is_advance) & is_advance == 1 ~ survived_t * annuity,
         TRUE ~ NA_real_  # Use NA for undefined cases
       ),
+      period = case_when(
+        n < number_premiums + is_advance ~ "Premium",
+        n < deffered + is_advance ~ "Deffered",
+        n < guaranteed_rates_duration + deffered + is_advance ~ "Guaranteed",
+        n < coverage_years + is_advance ~ "Coverage",
+        TRUE ~ NA_character_  # Use NA for undefined cases
+      ) |> 
+        factor(levels = c("Premium", "Deffered", "Guaranteed", "Coverage"))
       # # calculate the fund annuities
       # fund_premium_cumulated = cumsum(fund_premium * (1 + financial_rate)),
       # fund = fund * cumprod(1 + financial_rate) + fund_premium * (1 + financial_rate) - fund_annuity,
@@ -252,16 +261,17 @@ fund <- function(
       fund_details$fund_premium[i]) * (1 + fund_details$financial_rate[i]) - 
       fund_details$fund_annuity[i] * (1 + fund_details$financial_rate[i])**is_advance # when is_advance = 0, the fund_annuity isn't capitalized
     
-    fund_details$fund_t[i] = (ifelse(i > 1, fund_details$fund_t[i - 1], initial_fund) +
-      fund_details$fund_premium_t[i]) * (1 + fund_details$financial_rate[i]) -
-      fund_details$fund_annuity_t[i] * (1 + fund_details$financial_rate[i])**is_advance # when is_advance = 0, the fund_annuity isn't capitalized
+    # fund theoretical take only the theoretical values, so initial_fund is 0 and the financial_rate is the technical_rate
+    fund_details$fund_t[i] = (ifelse(i > 1, fund_details$fund_t[i - 1], 0) +
+      fund_details$fund_premium_t[i]) * (1 + technical_rate) -
+      fund_details$fund_annuity_t[i] * (1 + technical_rate)**is_advance # when is_advance = 0, the fund_annuity isn't capitalized
 
   }
   
   fund_details |> 
     mutate(
       fund_return = fund - lag(fund, default = initial_fund),
-      fund_pos = (lag(fund, default = initial_fund) + fund_premium) * (1 + financial_rate),
+      fund_pos = (lag(fund, default = initial_fund) + fund_premium) * (1 + financial_rate) - lag(fund, default = initial_fund),
       fund_neg = fund_annuity * (1 + financial_rate) ** (1 - is_advance),
     ) -> fund_details
     
@@ -274,12 +284,12 @@ annuity = 1
 age = 20
 omega = 120
 mortality_table = demoIta$SIM02
-number_premiums = 1
-deffered = 0
-# payment = "advance"
-payment = "arrears"
+number_premiums = 10
+deffered = 35
+payment = "advance"
+# payment = "arrears"
 coverage_years = 100
-guaranteed_rates_duration = 0
+guaranteed_rates_duration = 10
 technical_rate = .02
 fund_return_rate = .02
 aleatory_mortality = F
@@ -305,15 +315,25 @@ f <- fund(
 
 print(f, n = coverage_years)
 
+# p <-
 ggplot(f, aes(age)) +
   # geom_line(aes(y = fund)) +
-  geom_line(aes(y = fund_t), linetype = "dotted", color = "#AFFFAF") +
+  # geom_line(aes(y = fund_t), linetype = "dotted", color = "#AFFFAF") +
   geom_point(aes(y = fund)) +
+  geom_area(aes(y = fund, fill = period), alpha = 0.5, position = "stack") +
   geom_hline(yintercept = 0,
              linetype = "dashed",
              color = "tomato"
   ) +
+  scale_y_continuous(labels = \(x) number(x, prefix = "€", scale_cut = cut_short_scale())) +
+  scale_fill_manual(
+    values = c("Premium" = "steelblue", "Deffered" = "olivedrab3", "Guaranteed" = "darkorange", "Coverage" = "firebrick"),
+  ) +
   labs(title = "Fund value over time",
        x = "Age",
-       y = "Fund value") +
-  theme_minimal()
+       y = "Fund value",
+       fill = ""
+       ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+

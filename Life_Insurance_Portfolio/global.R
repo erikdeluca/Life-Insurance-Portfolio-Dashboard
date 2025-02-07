@@ -22,7 +22,7 @@ sass(
 )
 
 # extend shiny theme to plots
-thematic::thematic_shiny()
+# thematic::thematic_shiny()
 
 # source R folder ----
 source("R/label_number.R")

@@ -1,9 +1,5 @@
 server <- function(input, output) {
   
-  observeEvent(input$toggleSidebar, {
-    shinyjs::toggle(id = "Sidebar")
-  })
-  
   # input ui ----
   is_deffereal <- reactive({
     ifelse(input$payment == "Deferred", 1, 0)
@@ -20,9 +16,9 @@ server <- function(input, output) {
   
   # to keep inalterated the values of number_premiums if they are valid 
   initial_input <- reactiveValues(
-    number_premiums_value = 1,
-    guaranteed_rates_duration_value = 0,
-    duration_annuities_values = c(0,0)
+    number_premiums_value = 20,
+    guaranteed_rates_duration_value = 5,
+    duration_annuities_values = c(60,85)
     )
   
   output$duration_annuities <- renderUI({
@@ -57,34 +53,44 @@ server <- function(input, output) {
   })
   
   observeEvent(input$age, {
-    initial_input$duration_annuities_values[1] <- 
-      max(input$age + is_deffereal(), input$duration_annuities[1])
-    initial_input$duration_annuities_values[2] <- 
-      min(omega() + is_deffereal(), input$duration_annuities[2])
-    
-    initial_input$number_premiums_value <- 
-      min(input$number_premiums, input$duration_annuities[1] - input$age + is_deffereal())
-  })
-  
+    if(!is.null(input$duration_annuities))
+    {
+      initial_input$duration_annuities_values[1] <- 
+        max(input$age + is_deffereal(), input$duration_annuities[1])
+      initial_input$duration_annuities_values[2] <- 
+        min(omega() + is_deffereal(), input$duration_annuities[2])
+    }
+    })
+
   observeEvent(input$duration_annuities, {
-    initial_input$number_premiums_value <- 
-      min(input$number_premiums, input$duration_annuities[1] - input$age + is_deffereal())
+    if(!is.null(input$number_premium))
+    {
+      initial_input$number_premiums_value <- 
+        min(input$number_premiums, input$duration_annuities[1] - input$age + is_deffereal())
+    }
     
-    initial_input$guaranteed_rates_duration_value <-
-      ifelse(is.null(input$guaranteed_rates_duration),
-             0,
-             min(input$guaranteed_rates_duration, input$duration_annuities[2] - input$duration_annuities[1])
-              )
+    if(!is.null(input$guaranteed_rates_duration))
+    {
+      initial_input$guaranteed_rates_duration_value <- 
+        min(input$guaranteed_rates_duration, input$duration_annuities[2] - input$duration_annuities[1])
+    }
   })
   
   observeEvent(input$payment, {
-    initial_input$duration_annuities_values[1] <- 
-      max(input$age + is_deffereal(), input$duration_annuities[1])
-    initial_input$duration_annuities_values[2] <- 
-      min(omega() + is_deffereal(), input$duration_annuities[2])
+    if(!is.null(input$duration_annuities) && !is.null(input$number_premiums))
+    {
+      initial_input$number_premiums_value <- 
+        min(input$number_premiums, input$duration_annuities[1] - input$age + is_deffereal())
+    }
     
-    initial_input$number_premiums_value <- 
-      min(input$number_premiums, input$duration_annuities[1] - input$age + is_deffereal())
+    if(!is.null(input$duration_annuities))
+    {
+      initial_input$duration_annuities_values[1] <- 
+        max(input$age + is_deffereal(), input$duration_annuities[1])
+      initial_input$duration_annuities_values[2] <- 
+        min(omega() + is_deffereal(), input$duration_annuities[2])
+    }
+    
   })
   
   # render data 
@@ -132,23 +138,23 @@ server <- function(input, output) {
   # FUND PERFORMANCE tabset ----
   output$fund_performance_plot <- renderPlot({
     data_fund() |> 
-      ggplot(aes(age)) +
-      geom_line(aes(y = fund)) +
-      geom_line(aes(y = fund_t), linetype = "dotted", color = "#AFFFAF") +
-      geom_point(aes(y = fund)) +
-      geom_hline(yintercept = 0,
-                 linetype = "dashed",
-                 color = "tomato"
-                 ) +
-      labs(title = "Fund value over time",
-           x = "Age",
-           y = "Fund value") +
-      theme_minimal()
+      plot_fund_performance()
+  })
+  
+  output$fund_spin_plot <- renderPlot({
+    data_fund() |> 
+      plot_fund_spin()
   })
   
   output$real_fund_table <- renderDataTable({
     table_real_fund(data_fund())
     })
+  
+  # FUND THEORETICAL tabset ----
+  output$theoretical_fund_plot <- renderPlot({
+    data_fund() |> 
+      plot_fund_theoretical()
+  })
   
   output$theoretical_fund_table <- renderDataTable({
     table_theoretical_fund(data_fund())
