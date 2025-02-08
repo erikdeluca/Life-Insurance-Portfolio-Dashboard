@@ -123,9 +123,11 @@ numericInput("number_insured", "Number of insured", value = 1000, width = 1000)
 
 ::::
 
-# Fund Performance
+# Fund Performance 
 
-::: {.panel-tabset expandible=false}
+## Row {expandible=false}
+
+::: {.panel-tabset} 
 
 ## Fund Performance
 
@@ -158,7 +160,6 @@ dataTableOutput("real_fund_table") |> withSpinner()
 plotOutput("theoretical_fund_plot") |> withSpinner()
 ```
 
-## Data {expandible=false}
 
 ## Theoretical Fund 
 
@@ -167,5 +168,19 @@ dataTableOutput("theoretical_fund_table") |> withSpinner()
 ```
 
 
+# Deaths and Financial Rates
+
+## Plot
+
+```{r}
+plotOutput("deaths_plot") |> withSpinner()
+```
+
+
 # About
 
+::: {.card title="About this project"}
+
+This project has the only purpose to try a dashboard
+
+:::

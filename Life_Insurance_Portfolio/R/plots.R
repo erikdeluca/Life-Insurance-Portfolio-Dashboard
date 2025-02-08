@@ -3,11 +3,15 @@ plot_fund_performance <- function(f){
     geom_line(aes(y = fund), linetype = "dotted") +
     # geom_line(aes(y = fund_t), linetype = "dotted", color = "#AFFFAF") +
     geom_point(aes(y = fund)) +
-    geom_area(aes(y = fund, fill = period), alpha = 0.5, position = "stack") +
+    geom_area(mapping = aes(age, fund, fill = period),
+              data = data_for_area(f, "fund"),
+              alpha = .5,
+              position = position_dodge(width = 0)) +
     geom_hline(yintercept = 0,
                linetype = "dashed",
                color = "tomato"
     ) +
+    scale_x_continuous(labels = scales::label_number(accuracy = 1)) +
     scale_y_continuous(labels = \(x) number(x, prefix = "€", scale_cut = cut_short_scale())) +
     scale_fill_manual(
       values = c("Premium" = "steelblue", "Deffered" = "olivedrab3", "Guaranteed" = "darkorange", "Coverage" = "firebrick"),
@@ -20,13 +24,17 @@ plot_fund_performance <- function(f){
     theme_minimal() +
     theme(legend.position = "bottom")
 }
+
+# plot_fund_performance(fund())
 
 plot_fund_theoretical <- function(f){
-  ggplot(f, aes(age)) +
+ggplot(f, aes(age)) +
     geom_line(aes(y = fund_t), linetype = "dotted") +
     geom_point(aes(y = fund_t)) +
-    # geom_area(mapping = aes(age, fund_t, fill = period), data = data_for_area(f, "fund_t")) +
-    geom_area(aes(y = fund_t, fill = period), alpha = 0.5, position = "stack") +
+    geom_area(mapping = aes(age, fund_t, fill = period),
+              data = data_for_area(f, "fund_t"),
+              alpha = .5,
+              position = position_dodge(width = 0)) +
     geom_hline(yintercept = 0,
                linetype = "dashed",
                color = "tomato"
@@ -44,35 +52,33 @@ plot_fund_theoretical <- function(f){
     theme(legend.position = "bottom")
 }
 
-# data_for_area <- function(f, y){
-#   f |>
-#     summarise(
-#       # y,
-#       across(age, c(min = min, max = max), .names = "age_{.fn}"),
-#       .by = period
-#     ) |>
-#     mutate(
-#       age_max = lead(age_min, default = max(age_max)),
-#     ) |> 
-#     pivot_longer(
-#       cols = starts_with("age"),
-#       names_to = "limits",
-#       values_to = "age"
-#     ) |> 
-#     left_join(f |> select(age, all_of(y)), by = "age")
-# }
+data_for_area <- function(f, y){
+  f |>
+    summarise(
+      # y,
+      across(age, c(min = min, max = max), .names = "age_{.fn}"),
+      .by = period
+    ) |>
+    mutate(
+      age_min = lag(age_max, default = min(age_min)),
+    ) |>
+    pivot_longer(
+      cols = starts_with("age"),
+      names_to = "limits",
+      values_to = "age"
+    ) |>
+    left_join(f |> select(age, all_of(y)), by = c("age")) |> 
+    full_join(f |> select(age, all_of(y), period), by = c("age", "period", y))
+}
+
+# data_for_area(f, "fund_t") |> 
+#   arrange(age) |> 
+#   print(n = 100)
+# 
 # 
 # data_for_area(fund(), y = "fund_t")
-# 
-# # in development
-# geom_area_continuos <- function(f, y){
-#   geom_area(aes(y = y, fill = period), data = data_for_area(f, y), alpha = 0.5, position = "stack")
-# }
-# 
-# ggplot() +
-# geom_area_continuos(fund(), y = "fund_t")
-# 
-# plot_fund_theoretical(fund())
+
+plot_fund_theoretical(fund())
 
 plot_fund_spin <- function(f){
   ggplot(f, aes(age)) +
@@ -100,3 +106,57 @@ plot_fund_spin <- function(f){
 # plot_fund_spin(fund())
 
 
+plot_deaths <- function(f){
+  
+  delta_survived <-
+    full_join(
+      data_for_area(f, "survived_t"),
+      data_for_area(f, "survived_i"),
+      by = c("period", "limits", "age")
+    ) |> 
+    rowwise() |> 
+    mutate(
+      survived_min = min(survived_t, survived_i),
+      survived_delta = abs(survived_t - survived_i)
+    )
+  
+  f |> 
+    select(age, survived_i, survived_t) |> 
+    pivot_longer(c(survived_i, survived_t)) |> 
+    ggplot(aes(age, y = value)) +
+    geom_line(aes(linetype = name), linewidth = 1.2) +
+    geom_area(mapping = aes(x = age, y = survived_min, fill = period),
+              data = delta_survived,
+              alpha = .5,
+              position = position_dodge(width = 0)) +
+    geom_ribbon(aes(ymin = survived_min, ymax = survived_min + survived_delta, y = NULL),
+                data = delta_survived,
+                fill = "gold1",
+                alpha = .4
+    ) +
+    scale_fill_manual(
+      values = c(
+        "Premium" = "steelblue",
+        "Deffered" = "olivedrab3",
+        "Guaranteed" = "darkorange",
+        "Coverage" = "firebrick"
+      ),
+    ) +
+    guides(
+      fill = guide_none(),
+      # fill = guide_legend(nrow = 2),
+      linetype = guide_legend(nrow = 1),
+    ) +
+    labs(
+      x = "Age",
+      y = "Survived",
+      title = "Insured along coverage time",
+      linetype = "Deaths calculation method"
+    ) +
+    theme_minimal() +
+    theme(
+      legend.position = "bottom"
+    )
+}
+
+# plot_deaths(fund())

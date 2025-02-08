@@ -160,5 +160,12 @@ server <- function(input, output) {
     table_theoretical_fund(data_fund())
   })
   
+  # DEATHS AND FINANCIAL RATES tabset ----
+  
+  output$deaths_plot <- renderPlot({
+    plot_deaths(data_fund())
+  })
+  
+  
 
 }

@@ -88,9 +88,10 @@ premium <- function(
   if (guaranteed_rates_duration > 0)
   {
     guaranteed_rates <- sum((1 + technical_rate) ** -c((1 - is_advance + deffered):(-is_advance + guaranteed_rates_duration + deffered)))
-    # shold I insert is_deffered with coverage_years?
-    no_guaranteed_rates <- sum((1 + technical_rate) ** -c((1 - is_advance + deffered + guaranteed_rates_duration):coverage_years) *
-                                 hPx(c((1 - is_advance + deffered + guaranteed_rates_duration):coverage_years), age, omega, mortality_table))
+
+    no_guaranteed_rates <- sum((1 + technical_rate) ** -c((1 - is_advance + deffered + guaranteed_rates_duration):(coverage_years - is_advance)) *
+                                 hPx(c((1 - is_advance + deffered + guaranteed_rates_duration):(coverage_years - is_advance)), age, omega, mortality_table))
+    
     premium <- annuity * (guaranteed_rates + no_guaranteed_rates)
   } else
   {
@@ -225,8 +226,8 @@ fund <- function(
       fund_annuity = case_when(
         n < deffered + is_advance ~ 0,
         n < guaranteed_rates_duration + deffered + is_advance ~ annuity * number_insured,
-        (n < coverage_years + is_advance + 1) & is_advance == 1 ~ survived_f * annuity,
         (n < coverage_years + is_advance + 1) & is_advance == 0 ~ lead(survived_f, default = last_survived) * annuity,
+        (n < coverage_years + is_advance + 1) & is_advance == 1 ~ survived_f * annuity,
         TRUE ~ NA_real_  # Use NA for undefined cases
       ),
       fund_annuity_t = case_when(
@@ -279,61 +280,61 @@ fund <- function(
 }
 
 
-number_insured = 1000
-annuity = 1
-age = 20
-omega = 120
-mortality_table = demoIta$SIM02
-number_premiums = 10
-deffered = 35
-payment = "advance"
-# payment = "arrears"
-coverage_years = 100
-guaranteed_rates_duration = 10
-technical_rate = .02
-fund_return_rate = .02
-aleatory_mortality = F
-
-f <- fund(
-  number_insured = number_insured,
-  age = age,
-  annuity = annuity,
-  initial_fund = 0,
-  number_premiums = number_premiums,
-  omega = omega,
-  deffered = deffered,
-  payment = payment,
-  coverage_years = coverage_years,
-  guaranteed_rates_duration = guaranteed_rates_duration,
-  fund_return_rate = fund_return_rate,
-  technical_rate = technical_rate,
-  aleatory_rate = F,
-  aleatory_mortality = F,
-  mortality_table = demoIta$SIM02,
-  simulation_table = demoIta$SIM02
-) 
-
-print(f, n = coverage_years)
-
-# p <-
-ggplot(f, aes(age)) +
-  # geom_line(aes(y = fund)) +
-  # geom_line(aes(y = fund_t), linetype = "dotted", color = "#AFFFAF") +
-  geom_point(aes(y = fund)) +
-  geom_area(aes(y = fund, fill = period), alpha = 0.5, position = "stack") +
-  geom_hline(yintercept = 0,
-             linetype = "dashed",
-             color = "tomato"
-  ) +
-  scale_y_continuous(labels = \(x) number(x, prefix = "€", scale_cut = cut_short_scale())) +
-  scale_fill_manual(
-    values = c("Premium" = "steelblue", "Deffered" = "olivedrab3", "Guaranteed" = "darkorange", "Coverage" = "firebrick"),
-  ) +
-  labs(title = "Fund value over time",
-       x = "Age",
-       y = "Fund value",
-       fill = ""
-       ) +
-  theme_minimal() +
-  theme(legend.position = "bottom")
+# number_insured = 1000
+# annuity = 1
+# age = 20
+# omega = 120
+# mortality_table = demoIta$SIM02
+# number_premiums = 10
+# deffered = 35
+# payment = "advance"
+# # payment = "arrears"
+# coverage_years = 100
+# guaranteed_rates_duration = 10
+# technical_rate = .02
+# fund_return_rate = .02
+# aleatory_mortality = F
+# 
+# f <- fund(
+#   number_insured = number_insured,
+#   age = age,
+#   annuity = annuity,
+#   initial_fund = 0,
+#   number_premiums = number_premiums,
+#   omega = omega,
+#   deffered = deffered,
+#   payment = payment,
+#   coverage_years = coverage_years,
+#   guaranteed_rates_duration = guaranteed_rates_duration,
+#   fund_return_rate = fund_return_rate,
+#   technical_rate = technical_rate,
+#   aleatory_rate = F,
+#   aleatory_mortality = F,
+#   mortality_table = demoIta$SIM02,
+#   simulation_table = demoIta$SIM02
+# ) 
+# 
+# print(f, n = coverage_years)
+# 
+# # p <-
+# ggplot(f, aes(age)) +
+#   # geom_line(aes(y = fund)) +
+#   # geom_line(aes(y = fund_t), linetype = "dotted", color = "#AFFFAF") +
+#   geom_point(aes(y = fund)) +
+#   geom_area(aes(y = fund, fill = period), alpha = 0.5, position = "stack") +
+#   geom_hline(yintercept = 0,
+#              linetype = "dashed",
+#              color = "tomato"
+#   ) +
+#   scale_y_continuous(labels = \(x) number(x, prefix = "€", scale_cut = cut_short_scale())) +
+#   scale_fill_manual(
+#     values = c("Premium" = "steelblue", "Deffered" = "olivedrab3", "Guaranteed" = "darkorange", "Coverage" = "firebrick"),
+#   ) +
+#   labs(title = "Fund value over time",
+#        x = "Age",
+#        y = "Fund value",
+#        fill = ""
+#        ) +
+#   theme_minimal() +
+#   theme(legend.position = "bottom")
 
