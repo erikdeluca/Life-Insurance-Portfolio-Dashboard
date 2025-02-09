@@ -129,8 +129,8 @@ server <- function(input, output) {
       fund_return_rate = input$interest_rate,
       technical_rate = input$technical_rate,
       aleatory_rate = input$aleatory_rate,
-      mortality_table = lifecontingencies::demoIta[,names(demoIta) == input$technical_table],
-      simulation_table = lifecontingencies::demoIta[,names(demoIta) == input$simulation_table],
+      mortality_table = lifecontingencies::demoIta[,names(lifecontingencies::demoIta) == input$technical_table],
+      simulation_table = lifecontingencies::demoIta[,names(lifecontingencies::demoIta) == input$simulation_table],
       aleatory_mortality = input$aleatory_mortality
     )
   })

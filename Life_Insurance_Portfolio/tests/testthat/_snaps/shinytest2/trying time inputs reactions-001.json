@@ -1,0 +1,46 @@
+{
+  "output": {
+    "fund_performance_plot": {
+      "src": "[image data hash: 809f6d2ff94fc3fe3df9719a1e20c352]",
+      "width": 871.0833740234375,
+      "height": 400,
+      "alt": "Plot object",
+      "coordmap": {
+        "panels": [
+          {
+            "panel": 1,
+            "row": 1,
+            "col": 1,
+            "panel_vars": {
+
+            },
+            "log": {
+              "x": null,
+              "y": null
+            },
+            "domain": {
+              "left": 16.7296,
+              "right": 87.2704,
+              "bottom": -746.3654059845452,
+              "top": 15673.67352567545
+            },
+            "mapping": {
+              "y": "fund",
+              "x": "age"
+            },
+            "range": {
+              "left": 65.50727739726032,
+              "right": 1297.780821917808,
+              "bottom": 493.4649379990911,
+              "top": 34.44119752192108
+            }
+          }
+        ],
+        "dims": {
+          "width": 1306.625061035156,
+          "height": 600
+        }
+      }
+    }
+  }
+}

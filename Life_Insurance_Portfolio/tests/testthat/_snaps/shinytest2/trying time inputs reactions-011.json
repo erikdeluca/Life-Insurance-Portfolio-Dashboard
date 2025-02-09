@@ -1,0 +1,48 @@
+{
+  "output": {
+    "duration_annuities": {
+      "html": "<div class=\"form-group shiny-input-container\">\n  <label class=\"control-label\" id=\"duration_annuities-label\" for=\"duration_annuities\">Duration of annuities<\/label>\n  <input class=\"js-range-slider\" id=\"duration_annuities\" data-skin=\"shiny\" data-type=\"double\" data-min=\"52\" data-max=\"120\" data-from=\"60\" data-to=\"85\" data-step=\"1\" data-grid=\"true\" data-grid-num=\"9.71428571428571\" data-grid-snap=\"false\" data-prettify-separator=\",\" data-prettify-enabled=\"true\" data-keyboard=\"true\" data-drag-interval=\"true\" data-data-type=\"number\"/>\n<\/div>",
+      "deps": [
+        {
+          "name": "ionrangeslider-javascript",
+          "version": "2.3.1",
+          "src": {
+            "href": "ionrangeslider-javascript-2.3.1"
+          },
+          "meta": null,
+          "script": "js/ion.rangeSlider.min.js",
+          "stylesheet": null,
+          "head": null,
+          "attachment": null,
+          "all_files": true
+        },
+        {
+          "name": "strftime",
+          "version": "0.9.2",
+          "src": {
+            "href": "strftime-0.9.2"
+          },
+          "meta": null,
+          "script": "strftime-min.js",
+          "stylesheet": null,
+          "head": null,
+          "attachment": null,
+          "all_files": true
+        },
+        {
+          "name": "ionrangeslider-css",
+          "version": "2.3.1",
+          "src": {
+            "href": "ionrangeslider-css-2.3.1"
+          },
+          "meta": null,
+          "script": null,
+          "stylesheet": "css/ion.rangeSlider.css",
+          "head": null,
+          "attachment": null,
+          "all_files": true
+        }
+      ]
+    }
+  }
+}

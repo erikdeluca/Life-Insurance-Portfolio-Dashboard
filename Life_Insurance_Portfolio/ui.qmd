@@ -63,8 +63,8 @@ numericInput("interest_rate", "Interest rate",
 # Input: technical table
 selectInput("technical_table",
             "Technical table",
-            choices = names(demoIta),
-            selected = names(demoIta)[6],
+            choices = names(lifecontingencies::demoIta),
+            selected = names(lifecontingencies::demoIta)[6],
             width = 1000)
 ```
 :::
@@ -82,8 +82,8 @@ numericInput("technical_rate", "Technical rate",
 # Input: simulation table
 selectInput("simulation_table",
             "Simulation table",
-            choices = names(demoIta),
-            selected = names(demoIta)[6],
+            choices = names(lifecontingencies::demoIta),
+            selected = names(lifecontingencies::demoIta)[6],
             width = 1000)
 ```
 :::
@@ -132,7 +132,7 @@ numericInput("number_insured", "Number of insured", value = 1000, width = 1000)
 ## Fund Performance
 
 ```{r}
-plotOutput("fund_performance_plot") |> withSpinner()
+plotOutput("fund_performance_plot") |> withSpinner(type = 1, color = "tomato",size = 1)
 ```
 
 ## Fund Spin

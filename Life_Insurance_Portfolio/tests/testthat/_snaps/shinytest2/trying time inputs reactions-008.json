@@ -1,0 +1,48 @@
+{
+  "output": {
+    "guaranteed_rates_duration": {
+      "html": "<div class=\"form-group shiny-input-container\">\n  <label class=\"control-label\" id=\"guaranteed_rates_duration-label\" for=\"guaranteed_rates_duration\">Duration of guaranteed rates<\/label>\n  <input class=\"js-range-slider\" id=\"guaranteed_rates_duration\" data-skin=\"shiny\" data-min=\"0\" data-max=\"25\" data-from=\"5\" data-step=\"1\" data-grid=\"true\" data-grid-num=\"8.33333333333333\" data-grid-snap=\"false\" data-prettify-separator=\",\" data-prettify-enabled=\"true\" data-keyboard=\"true\" data-data-type=\"number\"/>\n<\/div>",
+      "deps": [
+        {
+          "name": "ionrangeslider-javascript",
+          "version": "2.3.1",
+          "src": {
+            "href": "ionrangeslider-javascript-2.3.1"
+          },
+          "meta": null,
+          "script": "js/ion.rangeSlider.min.js",
+          "stylesheet": null,
+          "head": null,
+          "attachment": null,
+          "all_files": true
+        },
+        {
+          "name": "strftime",
+          "version": "0.9.2",
+          "src": {
+            "href": "strftime-0.9.2"
+          },
+          "meta": null,
+          "script": "strftime-min.js",
+          "stylesheet": null,
+          "head": null,
+          "attachment": null,
+          "all_files": true
+        },
+        {
+          "name": "ionrangeslider-css",
+          "version": "2.3.1",
+          "src": {
+            "href": "ionrangeslider-css-2.3.1"
+          },
+          "meta": null,
+          "script": null,
+          "stylesheet": "css/ion.rangeSlider.css",
+          "head": null,
+          "attachment": null,
+          "all_files": true
+        }
+      ]
+    }
+  }
+}

@@ -78,7 +78,7 @@ data_for_area <- function(f, y){
 # 
 # data_for_area(fund(), y = "fund_t")
 
-plot_fund_theoretical(fund())
+# plot_fund_theoretical(fund())
 
 plot_fund_spin <- function(f){
   ggplot(f, aes(age)) +

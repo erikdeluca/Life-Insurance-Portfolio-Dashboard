@@ -5,7 +5,7 @@ library(shinycssloaders)
 library(shinyjs)
 library(shinydashboard)
 library(DT)
-library(lifecontingencies)
+# library(lifecontingencies)
 library(tidyverse)
 library(ggplot2)
 library(sass)
@@ -13,7 +13,12 @@ library(bslib)
 
 # COMPILE CSS ----
 # conflict bslibs on utils
-page <- bslib::page
+conflicted::conflict_prefer("page", "bslib")
+conflicted::conflict_prefer("lag", "dplyr")
+# conflicted::conflict_prefer("dataTableOutput", "DT")
+# conflicted::conflict_prefer("renderTableOutput", "DT")
+conflicted::conflict_prefer_all("shiny", "DT")
+# conflicted::conflict_scout()
 
 sass(
   input = sass_file("www/styles.scss"),
