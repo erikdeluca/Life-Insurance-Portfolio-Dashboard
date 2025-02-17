@@ -11,10 +11,9 @@ make_a_table <- function(pre_table){
       options = list(
         dom = 'Blfrtip',
         paging = TRUE,
-        scrollX=TRUE,
+        scrollX = TRUE,
         searching = TRUE,
         ordering = TRUE,
-        # selection = "none",
         buttons = list(
           list(
             extend = "copy",
@@ -31,13 +30,11 @@ make_a_table <- function(pre_table){
         # to get personal theme on buttons
         initComplete = JS(
           "function(settings, json) {",
-          # "$('.dt-buttons').addClass('btn-group');",
-          # "$('.dt-button').addClass('btn btn-primary');",
           "$('.dt-button').removeClass('dt-button');",
           "}"
         ),
         pageLength = 5,
-        lengthMenu = c(5, 10, 20, 50, "All")
+        lengthMenu = c(5, 5, 10, 20, 50, 100)
       )
     )
 }

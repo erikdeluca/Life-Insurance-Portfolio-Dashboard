@@ -173,3 +173,4 @@
 # #   number_insured = 1E5,aleatory_mortality = F, aleatory_rate = F) |> 
 # #   arrange(-age) |> 
 # #   summarise(first(fund) / last(survived))
+

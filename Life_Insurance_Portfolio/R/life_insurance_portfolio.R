@@ -11,15 +11,15 @@
 deaths_calculation <- function(
   number_insured = 1000,
   age = 20,
-  omega = 110,
   simulation_table = lifecontingencies::demoIta$SIM02,
   aleatory_mortality = TRUE
   )
 {  
+  omega <- length(simulation_table) - 1
   # initialize the died vector
   insured_dieds <- NULL
   # loop over the period
-  for(i in age:omega)
+  for (i in age:omega)
   {
     survived <- number_insured - sum(insured_dieds)
     # the probability of death in year i conditioned on being alive at year i
@@ -72,7 +72,6 @@ hAV <- function(h, number_insured, deaths)
 premium <- function(
     annuity = 12000,
   age = 20,
-  omega = 110,
   mortality_table = lifecontingencies::demoIta$SIM02,
   number_premiums = 15,
   deffered = 0,
@@ -82,6 +81,8 @@ premium <- function(
   technical_rate = 0.02
 )
 {
+  
+  omega <- length(mortality_table) - 1
   is_advance <- ifelse(payment == "advance", 1, 0)
   
   # calculate the premium
@@ -152,7 +153,6 @@ fund <- function(
     annuity = 12000,
     initial_fund = 0,
     number_premiums = 15,
-    omega = 110,
     deffered = 25,
     payment = "advance",
     coverage_years = 35,
@@ -165,6 +165,10 @@ fund <- function(
     aleatory_mortality = TRUE
 ) {
   
+  # set omegas
+  omega_technical <- length(mortality_table) - 1
+  # omega_simulation <- length(simulation_table) - 1
+  
   # set the advance value
   is_advance <- ifelse(payment == "advance", 1, 0)
 
@@ -172,7 +176,6 @@ fund <- function(
   deaths <- deaths_calculation(
     number_insured = number_insured,
     age = age,
-    omega = omega,
     simulation_table = simulation_table,
     aleatory_mortality = aleatory_mortality
   )
@@ -181,7 +184,6 @@ fund <- function(
   premium_value <- premium(
     annuity = annuity,
     age = age,
-    omega = omega,
     mortality_table = mortality_table,
     number_premiums = number_premiums,
     deffered = deffered,
@@ -200,7 +202,7 @@ fund <- function(
   
   # initialize the fund vector
   last_survived <- number_insured - sum(deaths[1:coverage_years + is_advance])
-  last_survived_t <- number_insured * hPx(coverage_years + is_advance, age, omega, mortality_table)
+  last_survived_t <- number_insured * hPx(coverage_years + is_advance, age, omega_technical, mortality_table)
   # fund_details <-
   tibble(
     n = is_advance:(coverage_years + is_advance - 1),
@@ -216,7 +218,7 @@ fund <- function(
     fund_annuity = rep(0, length(age)),
     financial_rate = financial_rates,
     fund_t = c(initial_fund, rep(0, length(age) - 1)),
-    hPx = hPx(n - is_advance, !!age, omega, mortality_table),
+    hPx = hPx(n - is_advance, !!age, omega_technical, mortality_table),
     survived_t = number_insured * hPx,
   ) |> 
     # manipulate the fund vectors
@@ -283,7 +285,6 @@ fund <- function(
 # number_insured = 1000
 # annuity = 1
 # age = 20
-# omega = 120
 # mortality_table = demoIta$SIM02
 # number_premiums = 10
 # deffered = 35
@@ -301,7 +302,6 @@ fund <- function(
 #   annuity = annuity,
 #   initial_fund = 0,
 #   number_premiums = number_premiums,
-#   omega = omega,
 #   deffered = deffered,
 #   payment = payment,
 #   coverage_years = coverage_years,

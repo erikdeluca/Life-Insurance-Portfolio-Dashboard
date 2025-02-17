@@ -5,7 +5,7 @@ account: x0fvjx-erik0de0luca
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 13934399
-bundleId: 9769428
+bundleId: 9772741
 url: https://erikdeluca.shinyapps.io/Life-Insurance-Portfolio-Dashboard/
 version: 1
 quarto_version: 1.5.57

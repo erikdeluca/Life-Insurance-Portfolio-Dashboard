@@ -183,3 +183,30 @@ quarto-document {
 .termsfeed-com---palette-light .cc-nb-title {
     color: $prussian-blue;
 }
+
+
+// for tabsetPanel
+/* Target the nav-tabs class to change the tab appearance */
+#tabset_panel_id .nav-tabs {
+    background-color: #f0f8ff; /* Light blue background */
+    border-bottom: 2px solid #ccc; /* Bottom border */
+}
+
+/* Style the active tab */
+#tabset_panel_id .nav-tabs .active a {
+    background-color: #008080; /* Teal background for active tab */
+    color: white; /* White text for active tab */
+    border: 1px solid #ccc; /* Border for active tab */
+    border-bottom: none; /* Remove bottom border to blend with content */
+}
+
+/* Style non-active tabs */
+#tabset_panel_id .nav-tabs a {
+    color: #555; /* Grey text for non-active tabs */
+}
+
+/* Hover effect for tabs */
+#tabset_panel_id .nav-tabs a:hover {
+    background-color: #e0ffff; /* Pale cyan on hover */
+    color: #000; /* Black text on hover */
+}

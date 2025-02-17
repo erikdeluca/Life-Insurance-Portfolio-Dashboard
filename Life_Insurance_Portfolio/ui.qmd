@@ -23,72 +23,106 @@ format:
 server: shiny
 ---
 
-# Input {.sidebar width=30%}
 
-#### Time Inputs
-
-```{r}
-# Input: advance or deferred payment
-prettyRadioButtons("payment", "Advance (due) or arrears (immediate) payments",
-             choices = c("advance", "arrears"),
-             selected = "advance", inline = TRUE
-             )
-# Input: Age
-sliderInput("age", "Age", value = 20, min = 0, max = 100)
-
-# Input: Duration of coverage
-uiOutput("duration_annuities")
-
-# Input: Number of premiums
-uiOutput("number_premiums")
-
-# Input: guaranteed rates duration
-uiOutput("guaranteed_rates_duration")
+```{js}
+$(document).on("shiny:connected", function() {
+  // initially, the first tab is chosen, set this
+  var target = $('#data-source').find("a").first().text();
+  Shiny.setInputValue("active_tab", target);
+  
+  // add an event handler which updates this value when a change occurs
+  $('#data-source').on('shown.bs.tab', function (e) { 
+    var target = $(e.target).text(); 
+    Shiny.setInputValue("active_tab", target);
+  });
+});
 ```
 
-#### Rates and Mortality Inputs
 
-:::: {.columns}
+# Input {.sidebar width="30%"}
 
-::: {.column width="50%"}
+
+::: {#data-source .panel-tabset }
+##### HLD
+
+::::: columns
+::: {.column width="50%" title="Technical Table"}
 ```{r}
-# interest rate input
-numericInput("interest_rate", "Interest rate", 
-             value = 0.02, 
-             min = 0, 
-             max = 1, 
-             step = 0.01,
-             width = 1000)
+# Input: technical table
+selectInput("technical_country_HLD",
+            "Country",
+            choices = names(mapping_life_tables),
+            selected = "ITA",
+            )
+
+uiOutput("technical_year_table")
+
+prettyRadioButtons(
+   inputId = "technical_sex_table",
+   label = "Sex", 
+    choices = c("Male" = 1, "Female" = 2),
+)
+```
+:::
+
+::: {.column width="50%" title="Simulation Table"}
+```{r}
+# Input: simulation table
+selectInput("simulation_country_HLD",
+            "Country",
+            choices = names(mapping_life_tables),
+            selected = "ITA",
+            )
+
+uiOutput("simulation_year_table")
+
+prettyRadioButtons(
+   inputId = "simulation_sex_table",
+   label = "Sex", 
+    choices = c("Male" = 1, "Female" = 2)
+)
+```
+:::
+
+<!-- end column HLD -->
+:::::
+
+
+##### SOA
+
+<!-- ::::: columns -->
+<!-- ::: {.column width="50%"} -->
+```{r}
+# Input: technical country
+selectInput("technical_country_soa",
+            "Technical country",
+            choices = mapping_soa_countries,
+            selected = "soa_italy")
+
+uiOutput("technical_table_soa")
+```
+<!-- ::: -->
+
+<!-- ::: {.column width="50%"} -->
+```{r}
+# Input: technical country
+selectInput("simulation_country_soa",
+            "Simulation country",
+            choices = mapping_soa_countries,
+            selected = "soa_italy")
 
 # Input: technical table
-selectInput("technical_table",
-            "Technical table",
-            choices = names(lifecontingencies::demoIta),
-            selected = names(lifecontingencies::demoIta)[6],
-            width = 1000)
+uiOutput("simulation_table_soa")
 ```
+<!-- ::: -->
+
+<!-- end column soa -->
+<!-- :::::  -->
+
+<!-- end panel-tabset -->
 :::
 
-::: {.column width="50%"}
-```{r}
-# technical rate input
-numericInput("technical_rate", "Technical rate",
-             value = 0.02,
-             min = 0,
-             max = 1, 
-             step = 0.01,
-             width = 1000)
 
-# Input: simulation table
-selectInput("simulation_table",
-            "Simulation table",
-            choices = names(lifecontingencies::demoIta),
-            selected = names(lifecontingencies::demoIta)[6],
-            width = 1000)
-```
-:::
-
-::::
 
 #### Aleatory
 
@@ -100,10 +134,60 @@ prettySwitch("aleatory_rate", "Aleatory rate",status = "primary", value = F)
 prettySwitch("aleatory_mortality", "Aleatory mortality",status = "primary", value = F)
 ```
 
+
+#### Time Inputs
+
+```{r}
+# Input: advance or deferred payment
+prettyRadioButtons("payment", "Advance (due) or arrears (immediate) payments",
+             choices = c("advance", "arrears"),
+             selected = "advance", inline = TRUE
+             )
+# Input: Age
+uiOutput("age")
+
+# Input: Duration of coverage
+uiOutput("duration_annuities")
+
+# Input: Number of premiums
+uiOutput("number_premiums")
+
+# Input: guaranteed rates duration
+uiOutput("guaranteed_rates_duration")
+```
+
+#### Financial Rates
+
+::::: columns
+::: {.column width="50%"}
+```{r}
+# interest rate input
+numericInput("interest_rate", "Interest rate",
+             value = 0.02,
+             min = 0,
+             max = 1,
+             step = 0.01,
+             width = 1000)
+```
+:::
+
+::: {.column width="50%"}
+```{r}
+# technical rate input
+numericInput("technical_rate", "Technical rate",
+             value = 0.02,
+             min = 0,
+             max = 1,
+             step = 0.01,
+             width = 1000)
+```
+:::
+:::::
+
+
 #### Funds Inputs
 
-:::: {.columns}
-
+::::: columns
 ::: {.column width="50%"}
 ```{r}
 # Input: Initial fund
@@ -120,15 +204,13 @@ numericInput("annuity", "Annuity", value = 1, min = 0, width = 1000)
 numericInput("number_insured", "Number of insured", value = 1000, width = 1000)
 ```
 :::
+:::::
 
-::::
+# Fund Performance
 
-# Fund Performance 
+## Row {expandible="false"}
 
-## Row {expandible=false}
-
-::: {.panel-tabset} 
-
+::: panel-tabset
 ## Fund Performance
 
 ```{r}
@@ -140,13 +222,11 @@ plotOutput("fund_performance_plot") |> withSpinner(type = 1, color = "tomato",si
 ```{r}
 plotOutput("fund_spin_plot") |> withSpinner(color = "#FFAAFF")
 ```
-
-
 :::
 
-## Data 
+## Data
 
-## Real Fund 
+## Real Fund
 
 ```{r}
 dataTableOutput("real_fund_table") |> withSpinner()
@@ -160,13 +240,11 @@ dataTableOutput("real_fund_table") |> withSpinner()
 plotOutput("theoretical_fund_plot") |> withSpinner()
 ```
 
-
-## Theoretical Fund 
+## Theoretical Fund
 
 ```{r}
 dataTableOutput("theoretical_fund_table") |> withSpinner()
 ```
-
 
 # Deaths and Financial Rates
 
@@ -176,11 +254,42 @@ dataTableOutput("theoretical_fund_table") |> withSpinner()
 plotOutput("deaths_plot") |> withSpinner()
 ```
 
-
 # About
 
-::: {.card title="About this project"}
 
-This project has the only purpose to try a dashboard
+::: {.card title="What is Life Insurance Portfolio Dashboard" fill="false"}
+The main goal of the dashboard is to illustrate in a practical way the actuarial math about life insurance. Within the different parameters you can discover the portfolio behaviors through the years.
+:::
+
+
+::: {.card title="Thanks"}
+I would like to say thank you to different people who have been crucial for the realization of the project:
+
+-   Rafael Moreno Ruiz was my actuarial life math professor, and IAE (Instituto de Actuarios Españoles) president, in my studies in Malaga, Spain.
+
+-   Ermanno Pitacco was the person who introduced me to actuarial science. He was a milestone for the academy.
+
+-   Anna Rita Bacinello and Pietro Millossovich were the professors whose exam allowed me to transform the theory in R coding.
+
+A special recognition to Ermanno Pitacco and Anna Rita Bacinello who spent their lifes building great advances in actuarial science and finance that will remain with us forever.
+
+Thanks to Quarto creators for giving all scientists a free and accessible way to publish our work.
+:::
+
+## Row {orientation="columns"}
+
+::: {.card title="Do You Want To Be Part Of This?"}
+If you have any suggestions, comments or just you would like to take part in the project contact me:
+
+-   [Any issues](https://github.com/erikdeluca/Life-Insurance-Portfolio-Dashboard/issues)
+
+-   [Comments or suggestions](https://github.com/erikdeluca/Life-Insurance-Portfolio-Dashboard/discussions)
+
+-   Joining us
+:::
+
+::: {.callout-important title="Disclaimer" collapsable=false}
+
+This dashboard is intended solely for educational and informational purposes. It is not intended to provide, and should not be relied upon for, financial or investment advice. The data and scenarios presented are hypothetical and should not be used as a basis for actual financial decisions. Users are encouraged to consult with a qualified financial advisor for advice tailored to their specific circumstances. The creators of this dashboard assume no responsibility for any decisions made based on its content.
 
 :::
