@@ -4,7 +4,9 @@ The **Life Insurance Portfolio Dashboard** is an interactive web application des
 
 ## Preview
 
-![Demo](media/demo.mp4)
+<div align="center">
+    <video src="https://github.com/erikdeluca/Life-Insurance-Portfolio-Dashboard/media/demo.mp4"></video>
+</div>
 
 ## Features
 
