@@ -2,12 +2,6 @@
 
 The **Life Insurance Portfolio Dashboard** is an interactive web application designed to simulate and analyze life insurance portfolios. Built using R, Quarto, and Shiny, this tool allows users to explore various actuarial concepts by adjusting multiple input parameters and observing their effects on fund performance over time.
 
-## Preview
-
-<div align="center">
-    <video src="https://github.com/erikdeluca/Life-Insurance-Portfolio-Dashboard/media/demo.mp4"></video>
-</div>
-
 ## Features
 
 -   **Simulation vs. Theoretical Fund Performance**: Compare simulated fund trajectories with theoretical models to understand deviations and assess risks.
