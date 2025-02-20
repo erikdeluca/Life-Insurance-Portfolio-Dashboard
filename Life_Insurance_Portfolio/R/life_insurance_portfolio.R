@@ -128,12 +128,19 @@ premium <- function(
 financial_rate <- function(
   aleatory_rate = TRUE,
   financial_rate = 0.02,
-  coverage_years = 35
+  coverage_years = 35,
+  standard_deviation = 0.01
 )
 {
   if(aleatory_rate)
   {
-    financial_rate <- rnorm(coverage_years, mean = financial_rate, sd = 0.01)
+    financial_rate <- accumulate(
+      rep(financial_rate, coverage_years),
+      ~ .7 * lag(.x, default = financial_rate) +
+        .3 * lag(.x, n = 2, default = financial_rate) + 
+        rnorm(1, mean = 0, sd = standard_deviation)
+    )
+                                 
   } else
   {
     financial_rate <- rep(financial_rate, coverage_years)
@@ -141,6 +148,8 @@ financial_rate <- function(
   
   return(financial_rate)
 }
+
+# plot(x = 1:50, y = accumulate(rep(.02, 50), ~ .7 * lag(.x, default = .02) + .3 * lag(.x, n = 2, default = .02) + rnorm(1, mean = 0, sd = 0.001)), type = "l")
 
 # financial_rate()
 
@@ -257,19 +266,36 @@ fund <- function(
     # ) |> print(n = 100)  # for DEBUGGING
     ) -> fund_details
   
-  for(i in 1:nrow(fund_details))
-  {
-    
-    fund_details$fund[i] = (ifelse(i > 1, fund_details$fund[i - 1], initial_fund) + 
-      fund_details$fund_premium[i]) * (1 + fund_details$financial_rate[i]) - 
-      fund_details$fund_annuity[i] * (1 + fund_details$financial_rate[i])**is_advance # when is_advance = 0, the fund_annuity isn't capitalized
-    
-    # fund theoretical take only the theoretical values, so initial_fund is 0 and the financial_rate is the technical_rate
-    fund_details$fund_t[i] = (ifelse(i > 1, fund_details$fund_t[i - 1], 0) +
-      fund_details$fund_premium_t[i]) * (1 + technical_rate) -
-      fund_details$fund_annuity_t[i] * (1 + technical_rate)**is_advance # when is_advance = 0, the fund_annuity isn't capitalized
-
-  }
+  # for(i in 1:nrow(fund_details))
+  # {
+  #   
+  #   fund_details$fund[i] = (ifelse(i > 1, fund_details$fund[i - 1], initial_fund) + 
+  #     fund_details$fund_premium[i]) * (1 + fund_details$financial_rate[i]) - 
+  #     fund_details$fund_annuity[i] * (1 + fund_details$financial_rate[i])**is_advance # when is_advance = 0, the fund_annuity isn't capitalized
+  #   
+  #   # fund theoretical take only the theoretical values, so initial_fund is 0 and the financial_rate is the technical_rate
+  #   fund_details$fund_t[i] = (ifelse(i > 1, fund_details$fund_t[i - 1], 0) +
+  #     fund_details$fund_premium_t[i]) * (1 + technical_rate) -
+  #     fund_details$fund_annuity_t[i] * (1 + technical_rate)**is_advance # when is_advance = 0, the fund_annuity isn't capitalized
+  # 
+  # }
+  
+  fund_details <- fund_details |> 
+    mutate(
+      fund = accumulate(
+        .x = seq_along(age), 
+        .f = ~ (.x + fund_premium[.y]) * (1 + financial_rate[.y]) - 
+          fund_annuity[.y] * (1 + financial_rate[.y])^is_advance,
+        .init = initial_fund
+      )[-1],  # Rimuove il valore iniziale aggiunto da accumulate
+      
+      fund_t = accumulate(
+        .x = seq_along(age), 
+        .f = ~ (.x + fund_premium_t[.y]) * (1 + technical_rate) - 
+          fund_annuity_t[.y] * (1 + technical_rate)^is_advance,
+        .init = 0
+      )[-1]  # Rimuove il valore iniziale
+    )
   
   fund_details |> 
     mutate(
@@ -312,8 +338,8 @@ fund <- function(
 #   aleatory_mortality = F,
 #   mortality_table = demoIta$SIM02,
 #   simulation_table = demoIta$SIM02
-# ) 
-# 
+# )
+
 # print(f, n = coverage_years)
 # 
 # # p <-

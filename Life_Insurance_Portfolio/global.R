@@ -39,10 +39,11 @@ source("R/label_number.R")
 source("R/life_insurance_portfolio.R")
 source("R/tables.R")
 source("R/plots.R")
+source("R/montecarlo_simulation.R")
 
 # load data --------------------------------------------------------------
 
-# HLD data ----
+## HLD data ----
 life_tables <- read_csv("data/data_cleaned.csv")
 
 map(
@@ -55,7 +56,10 @@ map(
   set_names(unique(life_tables$country)) -> mapping_life_tables
 # mapping_life_tables |> str()
 
-# SOA data ----
+# life_tables |> filter(country == "IRL", year == 2001, sex ==1) |> print(n = 110)
+
+
+## SOA data ----
 soa_tables <- read_rds("data/soa_tables.rds")
 
 mapping_soa_countries <- names(soa_tables)

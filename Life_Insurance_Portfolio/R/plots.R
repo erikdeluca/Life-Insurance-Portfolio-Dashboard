@@ -160,3 +160,74 @@ plot_deaths <- function(f){
 }
 
 # plot_deaths(fund())
+
+plot_financial_rate <- function(f, technical_rate = 0.02){
+  f |> 
+    mutate(
+      color = if_else(financial_rate < technical_rate, "Bad", "Good")
+    ) |> 
+  ggplot(aes(age)) +
+    geom_line(aes(y = financial_rate), linetype = "dotted", color = "slategray4") +
+    geom_point(aes(y = financial_rate, color = color)) +
+    geom_hline(yintercept = 0,
+               linetype = "dashed",
+               color = "tomato"
+    ) +
+    geom_hline(yintercept = technical_rate,
+               linetype = "dashed",
+               color = "springgreen2"
+    ) +
+    geom_hline(yintercept = .02,
+               linetype = "dashed",
+               color = "gold"
+    ) +
+    scale_y_continuous(labels = scales::percent_format(accuracy = .01)) +
+    labs(title = "Financial Rate over time",
+         x = "Age",
+         y = "Financial Rate"
+    ) +
+    scale_color_manual(
+      values = c("Good" = "skyblue", "Bad" = "sienna")
+    ) +
+    theme_minimal() +
+    theme(
+      legend.position = "none"
+    )
+}
+
+
+# plot_financial_rate(f, technical_rate = .015)
+
+plot_montecarlo <- function(mc)
+{
+  mc$simulations |>
+  mutate(
+    color = if_else(x < 0, "Negative", "Positive")
+  ) |>
+    ggplot(aes(x, fill = color)) +
+    geom_histogram(bins = 15, alpha = .6) +
+    geom_vline(xintercept = 0, color = "tomato", linetype = "dashed") +
+    scale_fill_manual(
+      values = c("Negative" = "sienna", "Positive" = "skyblue")
+    ) +
+    scale_x_continuous(labels = \(x) number(x, prefix = "€", scale_cut = cut_short_scale())) +
+    theme_minimal() +
+    theme(
+      legend.position = "none",
+      axis.text.y = element_blank(),
+    ) +
+    labs(
+      y = "",
+      x = "Final fund value"
+    )
+}
+
+  # map_dbl(
+  #   1:100,
+  #   ~{
+  #     fund(technical_rate = .02, aleatory_rate = T, aleatory_mortality = T) |>
+  #     tail(1) |>
+  #     pull(fund)
+  #   }
+  # ) |> monte_carlo() |> plot_montecarlo()
+  

@@ -13,6 +13,7 @@ format:
        code-fold: true
        df-print: paged
        warnings: false
+       logo: "www/logo.png"
        nav-buttons:
             - icon: linkedin
               href: https://www.linkedin.com/in/erikdeluca/
@@ -23,27 +24,12 @@ format:
 server: shiny
 ---
 
-
-```{js}
-$(document).on("shiny:connected", function() {
-  // initially, the first tab is chosen, set this
-  var target = $('#data-source').find("a").first().text();
-  Shiny.setInputValue("active_tab", target);
-  
-  // add an event handler which updates this value when a change occurs
-  $('#data-source').on('shown.bs.tab', function (e) { 
-    var target = $(e.target).text(); 
-    Shiny.setInputValue("active_tab", target);
-  });
-});
-```
-
-
 # Input {.sidebar width="30%"}
 
+#### Mortality Table
 
 ::: {#data-source .panel-tabset }
-##### HLD
+##### Human Life-Table Database
 
 ::::: columns
 ::: {.column width="50%" title="Technical Table"}
@@ -88,7 +74,7 @@ prettyRadioButtons(
 :::::
 
 
-##### SOA
+##### Society Of Actuaries
 
 <!-- ::::: columns -->
 <!-- ::: {.column width="50%"} -->
@@ -208,25 +194,23 @@ numericInput("number_insured", "Number of insured", value = 1000, width = 1000)
 
 # Fund Performance
 
-## Row {expandible="false"}
+## Row {expandible=false height=50%}
 
 ::: panel-tabset
-## Fund Performance
+### Fund Performance
 
 ```{r}
 plotOutput("fund_performance_plot") |> withSpinner(type = 1, color = "tomato",size = 1)
 ```
 
-## Fund Spin
+### Fund Spin
 
 ```{r}
 plotOutput("fund_spin_plot") |> withSpinner(color = "#FFAAFF")
 ```
 :::
 
-## Data
-
-## Real Fund
+## Data {height=50%}
 
 ```{r}
 dataTableOutput("real_fund_table") |> withSpinner()
@@ -240,7 +224,7 @@ dataTableOutput("real_fund_table") |> withSpinner()
 plotOutput("theoretical_fund_plot") |> withSpinner()
 ```
 
-## Theoretical Fund
+## table
 
 ```{r}
 dataTableOutput("theoretical_fund_table") |> withSpinner()
@@ -248,35 +232,77 @@ dataTableOutput("theoretical_fund_table") |> withSpinner()
 
 # Deaths and Financial Rates
 
-## Plot
+:::{.callout-tip title="Turn on aleatoriety" collapsable=true}
+
+Enable the financial and mortality aleatory switches to observe how they behave over the years.
+
+:::
 
 ```{r}
 plotOutput("deaths_plot") |> withSpinner()
+
+plotOutput("financial_rate_plot") |> withSpinner()
 ```
+
+# Monte Carlo Simulation
+
+## info {orientation="columns" height=20%} 
+
+### c
+
+```{r}
+#| content: valuebox
+#| title: "Ruin probability"
+#| icon: clipboard-pulse
+#| color: warning
+uiOutput("ruin_value") |> withSpinner()
+```
+
+### c
+
+```{r}
+#| content: valuebox
+#| title: "Expected value"
+#| icon: graph-up
+#| color: "#48cae4ff"
+uiOutput("expected_value") |> withSpinner()
+
+```
+
+## plot
+
+```{r}
+plotOutput("montecarlo_plot") |> withSpinner()
+```
+
 
 # About
 
 
 ::: {.card title="What is Life Insurance Portfolio Dashboard" fill="false"}
-The main goal of the dashboard is to illustrate in a practical way the actuarial math about life insurance. Within the different parameters you can discover the portfolio behaviors through the years.
+The Life Insurance Portfolio Dashboard is an interactive tool designed primarily for actuarial students, but also useful for insurance professionals and researchers. It provides a hands-on way to explore life insurance mathematics by allowing users to simulate and analyze life insurance portfolios, adjusting mortality tables, financial rates, and risk factors.
+
+Built with R and Shiny, the dashboard offers visual insights into fund performance, annuity structures, and stochastic mortality effects, making complex actuarial concepts more accessible and applicable in practice.
 :::
 
 
 ::: {.card title="Thanks"}
 I would like to say thank you to different people who have been crucial for the realization of the project:
 
--   Rafael Moreno Ruiz was my actuarial life math professor, and IAE (Instituto de Actuarios Españoles) president, in my studies in Malaga, Spain.
-
 -   Ermanno Pitacco was the person who introduced me to actuarial science. He was a milestone for the academy.
 
 -   Anna Rita Bacinello and Pietro Millossovich were the professors whose exam allowed me to transform the theory in R coding.
 
+-   Rafael Moreno Ruiz was my actuarial life math professor, and IAE (Instituto de Actuarios Españoles) president, in my studies in Malaga, Spain.
+
 A special recognition to Ermanno Pitacco and Anna Rita Bacinello who spent their lifes building great advances in actuarial science and finance that will remain with us forever.
 
-Thanks to Quarto creators for giving all scientists a free and accessible way to publish our work.
+Thanks to [Quarto](https://quarto.org/) creators for giving all scientists a free and accessible way to publish our work.
 :::
 
 ## Row {orientation="columns"}
+
+### Column
 
 ::: {.card title="Do You Want To Be Part Of This?"}
 If you have any suggestions, comments or just you would like to take part in the project contact me:
@@ -285,11 +311,45 @@ If you have any suggestions, comments or just you would like to take part in the
 
 -   [Comments or suggestions](https://github.com/erikdeluca/Life-Insurance-Portfolio-Dashboard/discussions)
 
--   Joining us
+-   [Joining us](mailto: erik4399@gmail.com)
 :::
+
+### Column
+
+::: {.callout-note title="Credits" collapsable=false}
+
+The mortality tables used in this dashboard come from the following authoritative sources:
+
+-   Society of Actuaries (SOA): [SOA Mortality Tables](https://mort.soa.org/)
+    The Society of Actuaries provides a wide range of updated mortality tables based on detailed actuarial studies, applicable to various populations and insurance products.
+
+
+-   Human Life-Table Database (HLD): [HLD Database](https://lifetable.de/)
+    The Human Life-Table Database (HLD) is a comprehensive collection of life tables for multiple populations across different years.        Most of the HLD tables are produced by national statistical offices, covering both national populations and specific regional or ethnic subpopulations.
+
+:::
+
+### Column 
 
 ::: {.callout-important title="Disclaimer" collapsable=false}
 
 This dashboard is intended solely for educational and informational purposes. It is not intended to provide, and should not be relied upon for, financial or investment advice. The data and scenarios presented are hypothetical and should not be used as a basis for actual financial decisions. Users are encouraged to consult with a qualified financial advisor for advice tailored to their specific circumstances. The creators of this dashboard assume no responsibility for any decisions made based on its content.
 
 :::
+
+
+
+```{js}
+$(document).on("shiny:connected", function() {
+  // initially, the first tab is chosen, set this
+  var target = $('#data-source').find("a").first().text();
+  Shiny.setInputValue("active_tab", target);
+  
+  // add an event handler which updates this value when a change occurs
+  $('#data-source').on('shown.bs.tab', function (e) { 
+    var target = $(e.target).text(); 
+    Shiny.setInputValue("active_tab", target);
+  });
+});
+```
+
